@@ -268,9 +268,10 @@ input::placeholder{color:var(--muted);}
 <!-- LOBBY -->
 <div id="s-lobby" class="screen">
   <div style="padding-top:20px;margin-bottom:28px;">
-    <h3 class="mb12">Hunt code</h3>
-    <div class="code-box mb12" id="l-code">----</div>
-    <p style="text-align:center;font-size:13px;">Share this with everyone in the car</p>
+    <h3 class="mb8">Share link</h3>
+    <div id="l-code" style="background:var(--surface2);border:0.5px solid var(--border2);border-radius:14px;padding:14px 16px;font-size:12px;word-break:break-all;color:var(--gold);letter-spacing:0.02em;margin-bottom:8px;cursor:pointer;" onclick="copyShareLink()" title="Tap to copy">----</div>
+    <p style="text-align:center;font-size:12px;color:var(--muted);">Tap the link above to copy it, then paste in your group chat</p>
+    <div id="copy-confirm" style="display:none;text-align:center;font-size:12px;color:var(--green);margin-top:4px;">✓ Copied to clipboard!</div>
   </div>
   <div class="card mb16">
     <h3 class="mb16">Who's joined</h3>
@@ -646,18 +647,21 @@ async function createBin(data){const r=await apiFetch('POST','/b',data);return r
 async function readBin(id){const r=await apiFetch('GET',`/b/${id}/latest`);return r.record;}
 async function writeBin(id,data){return apiFetch('PUT',`/b/${id}`,data);}
 
-function saveMap(code,binId){try{localStorage.setItem('hunt_'+code,binId);}catch(e){}}
-function getMap(code){try{return localStorage.getItem('hunt_'+code);}catch(e){return null;}}
+function saveMap(code,binId){try{localStorage.setItem("hunt_"+code,binId);}catch(e){}}
+function getMap(code){try{return localStorage.getItem("hunt_"+code);}catch(e){return null;}}
 
-async function lookupCode(code){
+function encodeShareCode(code,binId){return code+"|"+binId;}
+function decodeShareCode(raw){
+  const parts=raw.split("|");
+  if(parts.length===2)return{code:parts[0].toUpperCase().trim(),binId:parts[1].trim()};
+  return{code:raw.toUpperCase().trim(),binId:null};
+}
+
+async function lookupCode(rawCode){
+  const {code,binId}=decodeShareCode(rawCode);
+  if(binId){saveMap(code,binId);return binId;}
   const local=getMap(code);
   if(local)return local;
-  try{
-    const r=await apiFetch('GET','/b?page=1&count=20');
-    const bins=r.result||[];
-    const match=bins.find(b=>b.record&&b.record.huntCode===code);
-    if(match){saveMap(code,match.id);return match.id;}
-  }catch(e){}
   return null;
 }
 
@@ -715,7 +719,12 @@ async function joinHunt(){
 
 // ─── LOBBY ────────────────────────────────────────────
 function enterLobby(d){
-  document.getElementById('l-code').textContent=S.code;
+  // Build shareable link with binId embedded so any device can join
+  const shareCode=encodeShareCode(S.code,S.binId);
+  const shareUrl=window.location.href.split('?')[0]+'?join='+encodeURIComponent(shareCode);
+  S.shareUrl=shareUrl;
+  const codeEl=document.getElementById('l-code');
+  if(codeEl)codeEl.textContent=shareUrl;
   renderPlayers(d);
   if(S.role==='organiser'){
     document.getElementById('btn-start').style.display='block';
