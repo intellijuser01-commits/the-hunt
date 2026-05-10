@@ -1080,40 +1080,55 @@ function renderGuessing(stop,d,activeStops){
 }
 
 async function submitGuess(guess,isChoice){
-  guess=guess.trim().toLowerCase().replace(/[\u2018\u2019\u201A\u201B\u2032\u2035'`]/g,'').replace(/[^a-z0-9\s]/g,' ').trim();
+  guess=guess.trim().toLowerCase().replace(/[‘’‚‛′‵'`]/g,'').replace(/[^a-z0-9\s]/g,' ').trim();
   if(!guess)return;
   const input=document.getElementById('g-input');
   if(input)input.value='';
-  // Pause polling so it doesn't interfere mid-submission
   clearPoll();
-  const d=await readBin(S.binId);
-  if(!d.guesses)d.guesses={};
-  if(!d.guesses[S.role])d.guesses[S.role]=[];
-  d.guesses[S.role].push(guess);
-  const activeStops=getActiveStops(d);
-  const stop=activeStops[d.currentStop];
-  const correct=matchesAnswer(guess, stop.answer);
+
+  // Get current state from session snapshot — avoids stale JSONBin reads
+  let snap={};
+  try{ snap=JSON.parse(sessionStorage.getItem('hunt_session')||'{}').snapshot||{}; }catch(e){}
+  const activeStops=getActiveStops({removedStops:snap.removedStops||[]});
+  const stop=activeStops[snap.currentStop||0];
+  const correct=matchesAnswer(guess,stop.answer);
+
   if(correct){
-    d.unlocked=true;
-    S.lastHash=JSON.stringify(d);
-    await writeBin(S.binId,d);
-    renderHunt(d);
+    // Render unlocked immediately from local snapshot — never wait for network
+    const localD=Object.assign({},snap,{unlocked:true});
+    S.lastHash=JSON.stringify(localD);
+    saveSession(localD);
+    renderHunt(localD);
+    // Write to server in background, don't await before rendering
+    readBin(S.binId).then(d=>{
+      if(!d.guesses)d.guesses={};
+      if(!d.guesses[S.role])d.guesses[S.role]=[];
+      d.guesses[S.role].push(guess);
+      d.unlocked=true;
+      return writeBin(S.binId,d);
+    }).catch(()=>{});
     startHuntPolling();
   } else {
-    S.lastHash=JSON.stringify(d);
-    await writeBin(S.binId,d);
+    // Wrong — update guess count locally first, then write
+    const localD=Object.assign({},snap);
+    if(!localD.guesses)localD.guesses={};
+    if(!localD.guesses[S.role])localD.guesses[S.role]=[];
+    localD.guesses[S.role].push(guess);
+    S.lastHash=JSON.stringify(localD);
+    saveSession(localD);
+    // Write in background
+    readBin(S.binId).then(d=>{
+      if(!d.guesses)d.guesses={};
+      if(!d.guesses[S.role])d.guesses[S.role]=[];
+      d.guesses[S.role].push(guess);
+      return writeBin(S.binId,d);
+    }).catch(()=>{});
     const fb=document.getElementById('g-feedback');
     if(fb){
-      const n=d.guesses[S.role].length;
+      const n=localD.guesses[S.role].length;
       fb.className='gfb wrong';
       fb.textContent=n===1?'Not quite — try again.':n===2?'Nope. A hint is coming...':'Still not it. One more hint...';
-      // Re-fetch fresh state for re-render, don't use stale local d
-      setTimeout(async()=>{
-        const fresh=await readBin(S.binId);
-        S.lastHash=JSON.stringify(fresh);
-        renderHunt(fresh);
-        startHuntPolling();
-      },1300);
+      setTimeout(()=>{ renderHunt(localD); startHuntPolling(); },1300);
     } else {
       startHuntPolling();
     }
