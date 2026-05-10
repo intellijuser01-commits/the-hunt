@@ -347,6 +347,7 @@ input::placeholder{color:var(--muted);}
   <div id="o-content" style="overflow-y:auto;flex:1;"></div>
   <div style="margin-top:16px;display:flex;flex-direction:column;gap:8px;">
     <button class="btn btn-outline" id="btn-force" onclick="forceUnlock()">Force unlock ⚡</button>
+    <button class="btn btn-outline" id="btn-unlock-home" onclick="triggerHomeUnlock()" style="border-color:rgba(123,201,154,0.4);color:var(--green);">Unlock home reveal 🏠</button>
     <button class="btn btn-green" id="btn-finish-all" onclick="triggerFinish()">Reveal the collage for everyone 🎉</button>
     <button class="btn btn-outline" id="btn-remove" onclick="showRemoveModal()" style="color:var(--red);border-color:rgba(212,122,106,0.3);">Remove a stop 🗑️</button>
   </div>
@@ -534,8 +535,8 @@ const ALL_STOPS = [
     answer:['home','sugarloaf','our place','the flat','apartment','back home','our home','our flat'],
     hints:['It\'s where this all started this morning.','The living room you can peek into from next door.'],
     choices:['Home / Sugarloaf','The Library','Downtown Amherst','Mount Sugarloaf Summit'],
-    mapsUrl:null,
-    gMapsUrl:null,
+    mapsUrl:'https://maps.apple.com/?daddr=Sugarloaf+Estates,+South+Deerfield,+MA',
+    gMapsUrl:'https://maps.google.com/?daddr=Sugarloaf+Estates,+South+Deerfield,+MA',
     task:'Three things in order: (1) Antifragile dance — she performs, organiser approves. (2) Paper planes — everyone writes one word on theirs, folds, flies. (3) Tea. No phones for 20 minutes.',
     photoKey:'home_photo',
     photoLabel:'Kitchen photo — the final one',
@@ -774,7 +775,8 @@ async function createHunt(){
     enrouteIdx:0,
     enrouteDone:false,
     danceApproved:false,
-    jigsawApproved:false
+    jigsawApproved:false,
+    homeUnlocked:false
   };
   try{
     const binId=await createBin(huntData);
@@ -1199,6 +1201,18 @@ function renderUnlocked(stop,stopIdx,activeStops,d){
   if(stop.id==='home'){
     homeHtml=renderHomeStop(d);
   }
+  // Home unlock reveal — shows Maps button with special card when organiser triggers it
+  if(stop.id==='home'&&d.homeUnlocked){
+    const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
+    const homeMapUrl=isIOS?'https://maps.apple.com/?daddr=Sugarloaf+Estates,+South+Deerfield,+MA':'https://maps.google.com/?daddr=Sugarloaf+Estates,+South+Deerfield,+MA';
+    homeHtml+=`
+      <div class="card card-gold mb12" style="text-align:center;padding:24px 20px;">
+        <div style="font-size:36px;margin-bottom:12px;">🏠</div>
+        <h2 style="margin-bottom:6px;color:var(--gold);">You're home.</h2>
+        <p style="font-size:14px;margin-bottom:16px;">The house that holds the memories.<br>Sugarloaf Estates, South Deerfield.</p>
+        <a href="${homeMapUrl}" class="btn-maps" target="_blank" style="display:block;">📍 Open in Maps — Sugarloaf Estates</a>
+      </div>`;
+  }
 
   const nextBtn=!isLast
     ?`<button class="btn btn-gold mt8" onclick="nextStop()">Ready for next clue →</button>`
@@ -1423,6 +1437,21 @@ async function nextStop(){
     }
   }catch(e){console.error('nextStop error',e);}
   finally{ setTimeout(()=>{ S.writing=false; startHuntPolling(); },3000); }
+}
+
+async function triggerHomeUnlock(){
+  if(!confirm('Unlock the home reveal with Maps for everyone?')) return;
+  clearPoll();
+  S.writing=true;
+  try{
+    const d=await readBin(S.binId);
+    d.homeUnlocked=true;
+    S.lastHash=JSON.stringify(d);
+    saveSession(d);
+    await writeBin(S.binId,d);
+    renderOrg(d);
+  }catch(e){ alert('Could not unlock — try again.'); }
+  finally{ setTimeout(()=>{ S.writing=false; startPoll(async()=>{ const d2=await readBin(S.binId); const h=JSON.stringify(d2); if(h!==S.lastHash){S.lastHash=h;renderOrg(d2);} }); },2000); }
 }
 
 async function triggerFinish(){
@@ -1658,22 +1687,24 @@ function playYT(id, startSec, pauseSec, videoId){
 function startHuntPolling(){
   clearPoll();
   startPoll(async()=>{
-    // Skip poll render if a write is in flight or user is typing — prevents glitch-back
     if(S.writing||S.typing) return;
     const d2=await readBin(S.binId);
     const h=JSON.stringify(d2);
     if(h!==S.lastHash){
       S.lastHash=h;
-      const active=document.querySelector('.screen.active');
-      if(active){
-        const id=active.id;
-        if(id==='s-hunt'){
-          if(d2.finished){ renderDone(d2); return; }
-          renderHunt(d2);
-        }
-        else if(id==='s-prehunt'&&d2.preHuntDone){clearPoll();show('s-hunt');renderHunt(d2);startHuntPolling();}
-        else if(id==='s-done') return;
+      saveSession(d2);
+      // finished beats everything — switch to done screen no matter what screen they're on
+      if(d2.finished){
+        clearPoll();
+        renderDone(d2);
+        return;
       }
+      const active=document.querySelector('.screen.active');
+      if(!active) return;
+      const id=active.id;
+      if(id==='s-done') return;
+      if(id==='s-hunt') renderHunt(d2);
+      else if(id==='s-prehunt'&&d2.preHuntDone){clearPoll();show('s-hunt');renderHunt(d2);startHuntPolling();}
     }
   });
 }
