@@ -251,7 +251,7 @@ input::placeholder{color:var(--muted);}
   <h2 class="mb8">Join hunt</h2>
   <p class="mb24">Enter the code from the organiser's phone.</p>
   <div class="label">Hunt code</div>
-  <input type="text" id="j-code" placeholder="HUNT-0000" style="text-transform:uppercase;letter-spacing:0.1em;" maxlength="9" class="mb16" autocomplete="off">
+  <input type="text" id="j-code" placeholder="Paste the code here" style="font-size:13px;" maxlength="200" class="mb16" autocomplete="off">
   <div class="label">Your name</div>
   <input type="text" id="j-name" placeholder="e.g. Priya" class="mb16" autocomplete="off">
   <div class="label">Your role</div>
@@ -268,10 +268,11 @@ input::placeholder{color:var(--muted);}
 <!-- LOBBY -->
 <div id="s-lobby" class="screen">
   <div style="padding-top:20px;margin-bottom:28px;">
-    <h3 class="mb8">Share link</h3>
-    <div id="l-code" style="background:var(--surface2);border:0.5px solid var(--border2);border-radius:14px;padding:14px 16px;font-size:12px;word-break:break-all;color:var(--gold);letter-spacing:0.02em;margin-bottom:8px;cursor:pointer;" onclick="copyShareLink()" title="Tap to copy">----</div>
-    <p style="text-align:center;font-size:12px;color:var(--muted);">Tap the link above to copy it, then paste in your group chat</p>
-    <div id="copy-confirm" style="display:none;text-align:center;font-size:12px;color:var(--green);margin-top:4px;">✓ Copied to clipboard!</div>
+    <h3 class="mb8">Share code</h3>
+    <div id="l-code" style="background:var(--surface2);border:0.5px solid var(--border2);border-radius:14px;padding:14px 16px;font-size:11px;word-break:break-all;color:var(--gold);letter-spacing:0.03em;margin-bottom:8px;cursor:pointer;font-family:monospace;line-height:1.5;" onclick="copyShareLink()" title="Tap to copy">----</div>
+    <button class="btn btn-outline btn-sm" onclick="copyShareLink()" style="width:100%;margin-bottom:8px;">📋 Tap to copy code</button>
+    <p style="text-align:center;font-size:12px;color:var(--muted);">Send this code in your group chat — others paste it in the Join screen</p>
+    <div id="copy-confirm" style="display:none;text-align:center;font-size:12px;color:var(--green);margin-top:6px;">✓ Copied! Paste it in your group chat.</div>
   </div>
   <div class="card mb16">
     <h3 class="mb16">Who's joined</h3>
@@ -719,12 +720,11 @@ async function joinHunt(){
 
 // ─── LOBBY ────────────────────────────────────────────
 function enterLobby(d){
-  // Build shareable link with binId embedded so any device can join
+  // Build shareable code with binId embedded
   const shareCode=encodeShareCode(S.code,S.binId);
-  const shareUrl=window.location.href.split('?')[0]+'?join='+encodeURIComponent(shareCode);
-  S.shareUrl=shareUrl;
+  S.shareCode=shareCode;
   const codeEl=document.getElementById('l-code');
-  if(codeEl)codeEl.textContent=shareUrl;
+  if(codeEl)codeEl.textContent=shareCode;
   renderPlayers(d);
   if(S.role==='organiser'){
     document.getElementById('btn-start').style.display='block';
