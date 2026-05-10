@@ -1268,13 +1268,16 @@ function renderEnRoute(d,activeStops){
     return;
   }
   const q=ENROUTE_TRIVIA[idx];
+  const skipBtn=`<button class="btn btn-ghost mt8" style="width:100%;text-align:center;font-size:12px;" onclick="advanceEnRoute(null,false)">Organiser says close enough → skip</button>`;
+
   if(q.type==='mc'){
     el.innerHTML=`
       <div class="card card-gold mb16">
         <h3 class="mb8">En route — Question ${idx+1} of ${ENROUTE_TRIVIA.length}</h3>
         <div class="trivia-q">${q.q}</div>
         <div class="trivia-opts">${q.opts.map((o,i)=>`<button class="trivia-opt" onclick="answerEnRoute(${i})">${o}</button>`).join('')}</div>
-      </div>`;
+      </div>
+      ${skipBtn}`;
   } else if(q.type==='lyrics'){
     el.innerHTML=`
       <div class="card card-gold mb12">
@@ -1292,8 +1295,9 @@ function renderEnRoute(d,activeStops){
         <p style="font-style:italic;font-size:16px;color:var(--text);line-height:1.8;">${q.prompt}</p>
       </div>
       <div id="enroute-result" class="mb8"></div>
-      <input type="text" id="enroute-typed" placeholder="Type your answer..." class="mb8" autocomplete="off" onkeydown="if(event.key==='Enter')checkEnRouteLyrics()">
-      <button class="btn btn-gold" onclick="checkEnRouteLyrics()">Check answer</button>`;
+      <input type="text" id="enroute-typed" placeholder="Type your answer..." class="mb8" autocomplete="off" onfocus="S.typing=true" onblur="S.typing=false" onkeydown="if(event.key==='Enter')checkEnRouteLyrics()">
+      <button class="btn btn-gold mb8" onclick="checkEnRouteLyrics()">Check answer</button>
+      ${skipBtn}`;
     initYTPlayer('enroute', q.ytId);
   }
 }
