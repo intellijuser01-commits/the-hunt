@@ -238,13 +238,14 @@ input::placeholder{color:var(--muted);}
   <p class="mb24">A code gets generated. Share it with the other two.</p>
   <div class="label">Your name</div>
   <input type="text" id="c-name" placeholder="e.g. Kaushik" class="mb16" autocomplete="off">
-  <div class="label">Your role</div>
-  <div class="role-grid" id="c-roles">
-    <div class="role-btn" onclick="pickRole(this,'organiser','c-roles')"><div class="role-emoji">🎯</div><div class="role-name org">Organiser</div></div>
-    <div class="role-btn" style="opacity:0.3;cursor:not-allowed;" title="Join the hunt instead"><div class="role-emoji">🚗</div><div class="role-name him">Driver</div></div>
-    <div class="role-btn" style="opacity:0.3;cursor:not-allowed;" title="Join the hunt instead"><div class="role-emoji">🌟</div><div class="role-name her">Passenger</div></div>
+  <div class="card card-gold" style="display:flex;align-items:center;gap:12px;padding:14px 16px;">
+    <div style="font-size:22px;">🎯</div>
+    <div>
+      <div class="role-name org" style="font-size:12px;margin-bottom:2px;">Your role</div>
+      <div style="font-size:15px;font-weight:500;">Organiser</div>
+    </div>
   </div>
-  <p style="font-size:12px;color:var(--muted);margin-top:-8px;">Driver and Passenger should use <strong style="color:var(--text);">Join existing hunt</strong></p>
+  <p style="font-size:12px;color:var(--muted);margin-top:8px;">Driver and Passenger should use <strong style="color:var(--text);">Join existing hunt</strong></p>
   <div id="c-err" class="err" style="display:none"></div>
   <div class="spacer"></div>
   <button class="btn btn-gold" onclick="createHunt()">Generate hunt code</button>
@@ -735,10 +736,8 @@ async function lookupCode(rawCode){
 // ─── HUNT CREATION ────────────────────────────────────
 async function createHunt(){
   const name=document.getElementById('c-name').value.trim();
-  const role=S.selRole.c;
+  const role='organiser'; // Create is always organiser — no choice
   if(!name)return setErr('c-err','Enter your name');
-  if(!role)return setErr('c-err','Pick a role');
-  if(role!=='organiser')return setErr('c-err','Only the organiser can create a hunt. Driver and Passenger should join.');
   const code=genCode();
   const huntData={
     huntCode:code,
