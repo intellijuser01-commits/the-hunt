@@ -721,7 +721,7 @@ function getMap(code){try{return localStorage.getItem("hunt_"+code);}catch(e){re
 function encodeShareCode(code,binId){return code+"|"+binId;}
 function decodeShareCode(raw){
   const parts=raw.split("|");
-  if(parts.length===2)return{code:parts[0].toUpperCase().trim(),binId:parts[1].trim()};
+  if(parts.length===2)return{code:parts[0].toUpperCase().trim(),binId:parts[1].trim()}; // binId kept as-is, case-sensitive
   return{code:raw.toUpperCase().trim(),binId:null};
 }
 
@@ -765,16 +765,18 @@ async function createHunt(){
 }
 
 async function joinHunt(){
-  const code=document.getElementById('j-code').value.trim().toUpperCase();
+  // Do NOT toUpperCase the full string — binId is case-sensitive
+  const rawCode=document.getElementById('j-code').value.trim();
   const name=document.getElementById('j-name').value.trim();
   const role=S.selRole.j;
-  if(!code)return setErr('j-err','Enter the hunt code');
+  if(!rawCode)return setErr('j-err','Enter the hunt code');
   if(!name)return setErr('j-err','Enter your name');
   if(!role)return setErr('j-err','Pick a role');
   try{
-    const binId=await lookupCode(code);
+    const binId=await lookupCode(rawCode);
     if(!binId)return setErr('j-err','Hunt not found — check the code');
     S.binId=binId;
+    const {code}=decodeShareCode(rawCode);
     let d=await readBin(binId);
     d.players=d.players.filter(p=>p.role!==role);
     d.players.push({name,role});
