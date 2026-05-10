@@ -1,0 +1,1682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a0908">
+<title>The Hunt</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<script src="https://www.youtube.com/iframe_api"></script>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0908;
+  --surface: #141210;
+  --surface2: #1e1b18;
+  --surface3: #272320;
+  --border: rgba(255,220,150,0.1);
+  --border2: rgba(255,220,150,0.18);
+  --text: #f5efe6;
+  --muted: #7a6f63;
+  --gold: #e8b86d;
+  --gold2: #c49040;
+  --green: #7bc99a;
+  --red: #d47a6a;
+  --him: #7eb8e8;
+  --her: #d4a0d8;
+  --radius: 16px;
+  --fd: 'Playfair Display', serif;
+  --fb: 'DM Sans', sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--fb);overscroll-behavior:none;}
+
+/* grain overlay */
+body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");pointer-events:none;z-index:9999;opacity:0.4;}
+
+.screen{display:none;flex-direction:column;min-height:100dvh;padding:24px 20px max(24px, env(safe-area-inset-bottom));max-width:480px;margin:0 auto;}
+.screen.active{display:flex;}
+
+/* Typography */
+h1{font-family:var(--fd);font-size:38px;font-weight:400;line-height:1.1;letter-spacing:-0.5px;}
+h2{font-family:var(--fd);font-size:26px;font-weight:400;line-height:1.25;}
+h3{font-size:10px;font-weight:500;letter-spacing:0.14em;text-transform:uppercase;color:var(--muted);}
+p{line-height:1.7;color:rgba(245,239,230,0.65);font-size:15px;}
+em{font-style:italic;color:var(--text);}
+
+/* Spacing utils */
+.mt4{margin-top:4px;}.mt8{margin-top:8px;}.mt12{margin-top:12px;}.mt16{margin-top:16px;}.mt20{margin-top:20px;}.mt24{margin-top:24px;}
+.mb4{margin-bottom:4px;}.mb8{margin-bottom:8px;}.mb12{margin-bottom:12px;}.mb16{margin-bottom:16px;}.mb20{margin-bottom:20px;}.mb24{margin-bottom:24px;}
+.spacer{flex:1;}
+.label{font-size:11px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;}
+
+/* Inputs */
+input[type=text]{width:100%;background:var(--surface2);border:0.5px solid var(--border2);border-radius:12px;padding:15px 16px;color:var(--text);font-family:var(--fb);font-size:16px;outline:none;transition:border-color 0.2s;-webkit-appearance:none;appearance:none;}
+input:focus{border-color:var(--gold);}
+input::placeholder{color:var(--muted);}
+
+/* Buttons */
+.btn{display:block;width:100%;padding:16px;border-radius:14px;font-family:var(--fb);font-size:15px;font-weight:500;cursor:pointer;transition:all 0.18s;text-align:center;border:none;letter-spacing:0.02em;}
+.btn-gold{background:linear-gradient(135deg,var(--gold),var(--gold2));color:#1a1006;}
+.btn-gold:active{opacity:0.85;transform:scale(0.98);}
+.btn-outline{background:transparent;color:var(--text);border:0.5px solid var(--border2);}
+.btn-outline:active{background:var(--surface2);}
+.btn-ghost{background:transparent;color:var(--muted);border:none;font-size:13px;padding:8px 0;width:auto;display:inline-block;}
+.btn-green{background:var(--green);color:#071a0e;}
+.btn-red{background:var(--red);color:#1a0806;}
+.btn-sm{padding:10px 16px;font-size:13px;width:auto;border-radius:10px;}
+.btn-maps{display:block;background:rgba(126,184,232,0.08);color:var(--him);border:0.5px solid rgba(126,184,232,0.3);border-radius:14px;padding:14px;font-size:14px;font-weight:500;cursor:pointer;width:100%;text-align:center;text-decoration:none;transition:all 0.18s;}
+.btn-maps:active{background:rgba(126,184,232,0.16);}
+
+/* Cards */
+.card{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius);padding:20px;}
+.card-gold{border-color:rgba(232,184,109,0.25);background:rgba(232,184,109,0.04);}
+.card-him{border-color:rgba(126,184,232,0.2);background:rgba(126,184,232,0.04);}
+.card-her{border-color:rgba(212,160,216,0.2);background:rgba(212,160,216,0.04);}
+.card-green{border-color:rgba(123,201,154,0.25);background:rgba(123,201,154,0.04);}
+
+/* Role buttons */
+.role-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin:16px 0;}
+.role-btn{background:var(--surface);border:0.5px solid var(--border);border-radius:14px;padding:18px 8px;text-align:center;cursor:pointer;transition:all 0.2s;}
+.role-btn.sel-org{border-color:var(--gold);background:rgba(232,184,109,0.08);}
+.role-btn.sel-him{border-color:var(--him);background:rgba(126,184,232,0.08);}
+.role-btn.sel-her{border-color:var(--her);background:rgba(212,160,216,0.08);}
+.role-emoji{font-size:24px;margin-bottom:8px;}
+.role-name{font-size:11px;font-weight:500;letter-spacing:0.06em;}
+.role-name.org{color:var(--gold);}
+.role-name.him{color:var(--him);}
+.role-name.her{color:var(--her);}
+
+/* Progress */
+.stop-bar{display:flex;align-items:center;gap:5px;margin-bottom:22px;}
+.sdot{width:7px;height:7px;border-radius:50%;background:var(--surface3);border:0.5px solid var(--border2);flex-shrink:0;transition:all 0.3s;}
+.sdot.done{background:var(--green);border-color:var(--green);}
+.sdot.cur{background:var(--gold);border-color:var(--gold);}
+.sline{flex:1;height:0.5px;background:var(--border);transition:background 0.3s;}
+.sline.done{background:var(--green);}
+
+/* Tags */
+.tag{display:inline-block;font-size:10px;font-weight:500;padding:2px 8px;border-radius:20px;letter-spacing:0.05em;margin-left:6px;vertical-align:middle;}
+.tag-him{background:rgba(126,184,232,0.15);color:var(--him);}
+.tag-her{background:rgba(212,160,216,0.15);color:var(--her);}
+.tag-both{background:rgba(232,184,109,0.12);color:var(--gold);}
+.tag-org{background:rgba(232,184,109,0.12);color:var(--gold);}
+
+/* Player rows */
+.player-row{display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:0.5px solid var(--border);}
+.player-row:last-child{border-bottom:none;}
+.pdot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+
+/* Poll indicator */
+.poll-row{display:flex;align-items:center;gap:8px;}
+.poll-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:blink 2s infinite;flex-shrink:0;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.2}}
+
+/* Code display */
+.code-box{font-family:monospace;font-size:30px;letter-spacing:0.22em;color:var(--gold);text-align:center;padding:22px;background:var(--surface2);border-radius:14px;border:0.5px solid var(--border2);}
+
+/* Riddle box */
+.riddle{font-family:var(--fd);font-style:italic;font-size:18px;line-height:1.75;color:var(--text);padding:20px;background:var(--surface2);border-radius:12px;border-left:3px solid var(--gold);margin-bottom:16px;}
+
+/* Hint strip */
+.hint{background:var(--surface2);border-radius:10px;padding:13px 15px;margin-bottom:10px;font-size:14px;color:rgba(245,239,230,0.65);line-height:1.6;border-left:2px solid rgba(232,184,109,0.4);}
+
+/* Guess feedback */
+.gfb{font-size:13px;padding:11px 14px;border-radius:10px;margin-top:8px;display:none;}
+.gfb.wrong{background:rgba(212,122,106,0.12);color:var(--red);display:block;}
+.gfb.right{background:rgba(123,201,154,0.12);color:var(--green);display:block;}
+
+/* Choices */
+.choices{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;}
+.choice{background:var(--surface2);border:0.5px solid var(--border2);border-radius:10px;padding:13px 10px;font-size:13px;color:var(--text);cursor:pointer;text-align:center;transition:all 0.18s;font-family:var(--fb);}
+.choice:active{border-color:var(--gold);color:var(--gold);}
+
+/* Others guesses */
+.others{margin-top:12px;padding:12px;background:var(--surface2);border-radius:10px;}
+.guesser-row{display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:6px;}
+.guesser-row:last-child{margin-bottom:0;}
+.gval{color:var(--muted);font-style:italic;}
+
+/* Task box */
+.task{background:rgba(232,184,109,0.06);border:0.5px solid rgba(232,184,109,0.2);border-radius:12px;padding:15px;font-size:14px;line-height:1.65;color:rgba(245,239,230,0.85);}
+
+/* Gift item */
+.gift-item{display:flex;align-items:flex-start;gap:12px;padding:14px 0;border-bottom:0.5px solid var(--border);}
+.gift-item:last-child{border-bottom:none;}
+.gift-emoji{font-size:22px;flex-shrink:0;margin-top:1px;}
+.gift-name{font-size:14px;font-weight:500;margin-bottom:3px;}
+.gift-note{font-size:13px;color:var(--muted);font-style:italic;line-height:1.55;}
+
+/* Unlock hero */
+.unlock-hero{text-align:center;padding:24px 0 18px;}
+.unlock-icon{font-size:48px;margin-bottom:12px;}
+
+/* Org stop */
+.org-stop{background:var(--surface);border:0.5px solid var(--border);border-radius:14px;padding:16px;margin-bottom:10px;transition:all 0.2s;}
+.org-stop.active{border-color:rgba(232,184,109,0.4);}
+.org-stop.done{opacity:0.45;}
+.org-num{width:26px;height:26px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;flex-shrink:0;color:var(--muted);}
+.org-num.active{background:var(--gold);color:#1a1006;}
+.org-num.done{background:var(--green);color:#071a0e;}
+
+/* Photo upload */
+.photo-zone{border:1.5px dashed var(--border2);border-radius:14px;padding:28px 20px;text-align:center;cursor:pointer;transition:all 0.2s;background:var(--surface2);}
+.photo-zone:hover{border-color:var(--gold);}
+.photo-zone.has-photo{border-style:solid;border-color:var(--green);}
+.photo-preview{width:100%;border-radius:12px;margin-top:12px;max-height:220px;object-fit:cover;display:none;}
+
+/* YouTube embed */
+.yt-wrap{position:relative;border-radius:12px;overflow:hidden;background:#000;margin-bottom:14px;}
+.yt-wrap iframe{width:100%;height:210px;border:none;display:block;}
+.yt-overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);cursor:pointer;transition:opacity 0.2s;gap:10px;}
+.yt-overlay.hidden{display:none;}
+.yt-play-btn{width:64px;height:64px;border-radius:50%;background:rgba(232,184,109,0.9);display:flex;align-items:center;justify-content:center;font-size:24px;}
+.yt-play-label{color:rgba(255,255,255,0.85);font-size:13px;font-family:var(--fb);}
+
+/* Recording */
+.rec-zone{background:var(--surface2);border-radius:14px;padding:20px;text-align:center;border:0.5px solid var(--border2);}
+.rec-btn{width:72px;height:72px;border-radius:50%;background:var(--red);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;transition:all 0.2s;font-size:28px;}
+.rec-btn.recording{background:#ff4444;animation:pulse-red 1s infinite;}
+@keyframes pulse-red{0%,100%{box-shadow:0 0 0 0 rgba(255,68,68,0.4)}50%{box-shadow:0 0 0 12px rgba(255,68,68,0)}}
+.rec-status{font-size:13px;color:var(--muted);}
+.rec-timer{font-size:24px;font-weight:300;color:var(--text);margin:8px 0;}
+
+/* Trivia */
+.trivia-q{font-family:var(--fd);font-size:20px;line-height:1.5;color:var(--text);margin-bottom:16px;}
+.trivia-opts{display:flex;flex-direction:column;gap:8px;}
+.trivia-opt{background:var(--surface2);border:0.5px solid var(--border2);border-radius:12px;padding:14px 16px;font-size:14px;cursor:pointer;transition:all 0.18s;text-align:left;font-family:var(--fb);color:var(--text);}
+.trivia-opt:active{border-color:var(--gold);}
+.trivia-opt.correct{border-color:var(--green);background:rgba(123,201,154,0.1);color:var(--green);}
+.trivia-opt.wrong{border-color:var(--red);background:rgba(212,122,106,0.1);color:var(--red);}
+
+/* Photo frame */
+.frame-wrap{position:relative;background:linear-gradient(135deg,#1a1510,#0f0d0a);border-radius:20px;padding:16px;border:1px solid rgba(232,184,109,0.3);}
+.frame-title-area{text-align:center;margin-bottom:14px;}
+.frame-title-area h2{font-family:var(--fd);font-size:22px;font-weight:400;color:var(--gold);letter-spacing:0.02em;}
+.frame-title-area p{font-size:11px;color:var(--muted);margin-top:4px;letter-spacing:0.1em;text-transform:uppercase;}
+.frame-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px;border-radius:10px;overflow:hidden;}
+.frame-grid.one{grid-template-columns:1fr;}
+.frame-grid.three .frame-photo:first-child{grid-column:span 2;}
+.frame-grid.five .frame-photo:first-child{grid-column:span 2;}
+.frame-photo{width:100%;aspect-ratio:1;object-fit:cover;display:block;transition:transform 0.3s;}
+.frame-footer{text-align:center;margin-top:12px;font-size:11px;color:var(--muted);letter-spacing:0.08em;}
+.frame-deco{height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);margin:10px 0;}
+.frame-header{text-align:center;padding:16px 0 8px;}
+
+/* Error */
+.err{color:var(--red);font-size:13px;margin-top:8px;}
+
+/* Divider */
+.divider{height:0.5px;background:var(--border);margin:20px 0;}
+
+/* Fade in */
+.fade-in{animation:fadeIn 0.3s ease;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* Welcome decorative */
+.deco-line{height:0.5px;background:linear-gradient(90deg,transparent,var(--gold),transparent);margin:20px 0;}
+
+/* Scrollable content */
+.scroll-content{overflow-y:auto;flex:1;}
+
+/* Org removed stop */
+.org-stop.removed{opacity:0.2;text-decoration:line-through;}
+</style>
+</head>
+<body>
+
+<!-- WELCOME -->
+<div id="s-welcome" class="screen active">
+  <div style="flex:1;display:flex;flex-direction:column;justify-content:center;">
+    <div style="font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);margin-bottom:20px;">Western Massachusetts</div>
+    <h1>The Hunt<span style="color:var(--gold)">.</span></h1>
+    <div class="deco-line"></div>
+    <p style="margin-bottom:32px;">One car. Three people. Zero spoilers.<br>A day worth remembering.</p>
+  </div>
+  <button class="btn btn-gold mb8" onclick="show('s-create')">Create a new hunt</button>
+  <p style="text-align:center;font-size:11px;color:var(--muted);margin-bottom:12px;">Organiser password required</p>
+  <button class="btn btn-outline" onclick="show('s-join')">Join existing hunt</button>
+</div>
+
+<!-- CREATE -->
+<div id="s-create" class="screen">
+  <button class="btn-ghost mb20" onclick="show('s-welcome')">← Back</button>
+  <h2 class="mb8">Create hunt</h2>
+  <p class="mb24">A code gets generated. Share it with the other two.</p>
+  <div class="label">Your name</div>
+  <input type="text" id="c-name" placeholder="e.g. Kaushik" class="mb16" autocomplete="off">
+  <div class="card card-gold" style="display:flex;align-items:center;gap:12px;padding:14px 16px;">
+    <div style="font-size:22px;">🎯</div>
+    <div>
+      <div class="role-name org" style="font-size:12px;margin-bottom:2px;">Your role</div>
+      <div style="font-size:15px;font-weight:500;">Organiser</div>
+    </div>
+  </div>
+  <p style="font-size:12px;color:var(--muted);margin-top:8px;">Driver and Passenger should use <strong style="color:var(--text);">Join existing hunt</strong></p>
+  <div id="c-err" class="err" style="display:none"></div>
+  <div class="spacer"></div>
+  <button class="btn btn-gold" onclick="createHunt()">Generate hunt code</button>
+</div>
+
+<!-- JOIN -->
+<div id="s-join" class="screen">
+  <button class="btn-ghost mb20" onclick="show('s-welcome')">← Back</button>
+  <h2 class="mb8">Join hunt</h2>
+  <p class="mb24">Enter the code from the organiser's phone.</p>
+  <div class="label">Hunt code</div>
+  <input type="text" id="j-code" placeholder="Paste the code here" style="font-size:13px;" maxlength="200" class="mb16" autocomplete="off">
+  <div class="label">Your name</div>
+  <input type="text" id="j-name" placeholder="e.g. Priya" class="mb16" autocomplete="off">
+  <div class="label">Your role</div>
+  <div class="role-grid" id="j-roles">
+    <div class="role-btn" onclick="pickRole(this,'organiser','j-roles')"><div class="role-emoji">🎯</div><div class="role-name org">Organiser</div></div>
+    <div class="role-btn" onclick="pickRole(this,'him','j-roles')"><div class="role-emoji">🚗</div><div class="role-name him">Driver</div></div>
+    <div class="role-btn" onclick="pickRole(this,'her','j-roles')"><div class="role-emoji">🌟</div><div class="role-name her">Passenger</div></div>
+  </div>
+  <div id="j-err" class="err" style="display:none"></div>
+  <div class="spacer"></div>
+  <button class="btn btn-gold" onclick="joinHunt()">Join</button>
+</div>
+
+<!-- LOBBY -->
+<div id="s-lobby" class="screen">
+  <div style="padding-top:20px;margin-bottom:28px;">
+    <h3 class="mb8">Share code</h3>
+    <div id="l-code" style="background:var(--surface2);border:0.5px solid var(--border2);border-radius:14px;padding:14px 16px;font-size:11px;word-break:break-all;color:var(--gold);letter-spacing:0.03em;margin-bottom:8px;cursor:pointer;font-family:monospace;line-height:1.5;" onclick="copyShareLink()" title="Tap to copy">----</div>
+    <button class="btn btn-outline btn-sm" onclick="copyShareLink()" style="width:100%;margin-bottom:8px;">📋 Tap to copy code</button>
+    <p style="text-align:center;font-size:12px;color:var(--muted);">Send this code in your group chat — others paste it in the Join screen</p>
+    <div id="copy-confirm" style="display:none;text-align:center;font-size:12px;color:var(--green);margin-top:6px;">✓ Copied! Paste it in your group chat.</div>
+  </div>
+  <div class="card mb16">
+    <h3 class="mb16">Who's joined</h3>
+    <div id="l-players"></div>
+  </div>
+  <div class="poll-row mb16">
+    <div class="poll-dot"></div>
+    <span style="font-size:13px;color:var(--muted);">Waiting for everyone...</span>
+  </div>
+  <div class="spacer"></div>
+  <button class="btn btn-gold mb8" id="btn-start" style="display:none" onclick="startHunt()">Start the hunt 🎉</button>
+  <p style="text-align:center;font-size:13px;color:var(--muted);" id="l-hint">Only the organiser can start</p>
+</div>
+
+<!-- HUNT (driver + passenger) -->
+<div id="s-hunt" class="screen">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;padding-top:8px;">
+    <div>
+      <div style="font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);" id="h-role-label">Driver</div>
+      <div style="font-family:var(--fd);font-size:20px;margin-top:2px;" id="h-name-label">—</div>
+    </div>
+    <div style="text-align:right;">
+      <div style="font-size:10px;color:var(--muted);">Stop</div>
+      <div style="font-size:18px;font-weight:400;" id="h-counter">1 / 6</div>
+    </div>
+  </div>
+  <div class="stop-bar" id="h-stopbar"></div>
+  <div id="h-content" class="fade-in" style="overflow-y:auto;flex:1;"></div>
+</div>
+
+<!-- PRE-HUNT SCREEN (Kannada song) -->
+<div id="s-prehunt" class="screen">
+  <div style="padding-top:20px;margin-bottom:24px;">
+    <h3 class="mb8">Before we begin</h3>
+    <h2 style="margin-bottom:12px;">Prove yourself,<br><em>Chaudhary</em></h2>
+    <p>The day doesn't start until someone sings for it.</p>
+  </div>
+  <div class="card card-gold mb16">
+    <h3 class="mb12">The challenge</h3>
+    <p style="font-size:15px;line-height:1.7;">From <em>Anisuthide</em> — Mungaru Male.<br>Listen to the clip, then complete the next line.</p>
+  </div>
+  <div id="prehunt-content"></div>
+</div>
+
+<!-- ORGANISER -->
+<div id="s-org" class="screen">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-top:8px;">
+    <div>
+      <div style="font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--gold);">Organiser</div>
+      <div style="font-family:var(--fd);font-size:20px;margin-top:2px;" id="o-name">—</div>
+    </div>
+    <div class="poll-row">
+      <div class="poll-dot"></div>
+      <span style="font-size:12px;color:var(--muted);">Live</span>
+    </div>
+  </div>
+  <div id="o-content" style="overflow-y:auto;flex:1;"></div>
+  <div style="margin-top:16px;display:flex;flex-direction:column;gap:8px;">
+    <button class="btn btn-outline" id="btn-force" onclick="forceUnlock()">Force unlock ⚡</button>
+    <button class="btn btn-green" id="btn-finish-all" onclick="triggerFinish()">Reveal the collage for everyone 🎉</button>
+    <button class="btn btn-outline" id="btn-remove" onclick="showRemoveModal()" style="color:var(--red);border-color:rgba(212,122,106,0.3);">Remove a stop 🗑️</button>
+  </div>
+</div>
+
+<!-- DONE -->
+<div id="s-done" class="screen">
+  <div style="flex:1;display:flex;flex-direction:column;padding:16px 0 24px;">
+    <div style="text-align:center;margin-bottom:28px;">
+      <div style="font-size:52px;margin-bottom:14px;">🎉</div>
+      <h1 class="mb8">Hunt complete.</h1>
+      <p style="font-size:14px;">One car. Three people. A day worth keeping.</p>
+    </div>
+
+    <div class="frame-wrap mb16">
+      <div class="frame-title-area">
+        <h2>The Hunt</h2>
+        <p id="frame-date">Western Massachusetts</p>
+      </div>
+      <div class="frame-deco"></div>
+      <div class="frame-grid" id="frame-grid">
+        <div style="grid-column:span 2;padding:32px;text-align:center;color:var(--muted);font-size:13px;">Photos from the day will appear here.</div>
+      </div>
+      <div class="frame-deco"></div>
+      <div class="frame-footer">One car · Three people · Western Massachusetts</div>
+    </div>
+
+    <div class="card card-gold mb16">
+      <p style="font-family:var(--fd);font-style:italic;color:rgba(245,239,230,0.7);font-size:15px;line-height:1.9;text-align:center;">"The house that holds the memories."</p>
+    </div>
+
+    <button class="btn btn-outline" onclick="saveFrame()">Save photo frame 📸</button>
+  </div>
+</div>
+
+<!-- ORGANISER PASSWORD MODAL -->
+<div id="org-pw-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:1001;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:var(--surface);border-radius:20px;padding:28px 24px;width:100%;max-width:400px;border:0.5px solid var(--border2);">
+    <div style="font-size:32px;text-align:center;margin-bottom:16px;">🔐</div>
+    <h2 style="text-align:center;margin-bottom:8px;">Organiser access</h2>
+    <p style="text-align:center;font-size:14px;margin-bottom:20px;">This role is password protected.</p>
+    <div class="label">Password</div>
+    <input type="password" id="org-pw-input" placeholder="Enter password" class="mb8" autocomplete="off" onkeydown="if(event.key==='Enter')checkOrgPassword()">
+    <div id="org-pw-err" class="err" style="display:none;margin-bottom:8px;"></div>
+    <button class="btn btn-gold mb8" onclick="checkOrgPassword()">Unlock organiser</button>
+    <button class="btn btn-ghost" style="width:100%;text-align:center;" onclick="closeOrgPwModal()">Cancel</button>
+  </div>
+</div>
+
+<!-- REMOVE MODAL -->
+<div id="remove-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:1000;align-items:flex-end;justify-content:center;">
+  <div style="background:var(--surface);border-radius:20px 20px 0 0;padding:24px 20px;width:100%;max-width:480px;border-top:0.5px solid var(--border2);">
+    <h3 class="mb16">Remove a stop</h3>
+    <div id="remove-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;"></div>
+    <button class="btn btn-outline" onclick="closeRemoveModal()">Cancel</button>
+  </div>
+</div>
+
+<script>
+// ─── CONFIG ───────────────────────────────────────────
+const API_KEY = '$2a$10$Q5bvgQU4nV3Y8hl.K/.lj.SyGT5jG7Zo2M/GCDsyotgdDKMryUb4C';
+const ANTHROPIC_KEY = ''; // will use window.anthropic if available, else text fallback
+const BASE = 'https://api.jsonbin.io/v3';
+
+// ─── STOPS DATA ───────────────────────────────────────
+const ALL_STOPS = [
+  {
+    id:'sugarloaf',
+    name:'Mount Sugarloaf',
+    icon:'⛰️',
+    riddle:'You live at its feet but have you ever looked it in the eye? Drive to the highest point you can reach without leaving the ground. The valley below knows something about you that you haven\'t figured out yet.',
+    answer:['sugarloaf','mount sugarloaf','mt sugarloaf','sugar loaf','the mountain'],
+    hints:['Think elevation. You literally live near its name.','A state reservation in South Deerfield — you can drive to the summit.'],
+    choices:['Mount Sugarloaf','Skinner State Park','Mount Tom','Puffer\'s Pond'],
+    mapsUrl:'https://maps.apple.com/?daddr=Mount+Sugarloaf+State+Reservation,+South+Deerfield,+MA',
+    gMapsUrl:'https://maps.google.com/?daddr=Mount+Sugarloaf+State+Reservation,+South+Deerfield,+MA',
+    task:'Everyone takes one photo at the summit. No posing — candid only.',
+    photoKey:'sugarloaf_photo',
+    photoLabel:'Upload your summit photo',
+    trivia:{
+      type:'mc',
+      q:'What is the name of the river valley you can see from the Sugarloaf summit?',
+      opts:['Pioneer Valley','Berkshire Valley','Quabbin Valley','Connecticut Valley'],
+      correct:0,
+      explanation:'The Pioneer Valley — home to five colleges, excellent brinjal curry, and at least one person who makes paper planes indoors.'
+    },
+    gifts:{
+      him:{emoji:'👓',name:'Glasses',note:'Now you can see the valley and all your life choices in HD.'},
+      her:null
+    }
+  },
+  {
+    id:'saigon',
+    name:'Miss Saigon',
+    icon:'🍜',
+    riddle:'Go where the pho is hot and the portions are honest. A restaurant downtown that proves you don\'t need to travel far to find something worth sitting down for. Order something you\'ve never tried.',
+    answer:['miss saigon','saigon','vietnamese','pho','the restaurant','downtown amherst'],
+    hints:['It\'s a Vietnamese restaurant.','Downtown Amherst — the place everyone ends up eventually.'],
+    choices:['Miss Saigon','Amherst Chinese Food','Judie\'s','Antonio\'s Pizza'],
+    mapsUrl:'https://maps.apple.com/?daddr=Miss+Saigon,+Amherst,+MA',
+    gMapsUrl:'https://maps.google.com/?daddr=Miss+Saigon,+Amherst,+MA',
+    task:'Food science hot seat: he has to explain the science behind one dish on the table. On the spot. Judged by the group.',
+    photoKey:'saigon_photo',
+    photoLabel:'Upload a photo of your food',
+    trivia:{
+      type:'mc',
+      q:'What makes pho broth so rich and clear at the same time?',
+      opts:['Slow simmering + skimming fat','Adding cornstarch','Pressure cooking at high heat','Using MSG concentrate'],
+      correct:0,
+      explanation:'Low and slow — hours of simmering with bones, charred ginger and onion, then careful skimming. The Maillard reaction from charring gives it depth. Food science in a bowl.'
+    },
+    gifts:{
+      him:{emoji:'🍱',name:'Glass storage',note:'For the leftovers of a food scientist. Pack them properly.'},
+      her:{emoji:'🍱',name:'Glass storage',note:'For leftovers from someone else\'s three-hour cooking session. Gomez would have packed it for Morticia.'}
+    }
+  },
+  {
+    id:'gasstation',
+    name:'Gas Station',
+    icon:'⛽',
+    riddle:'Before any great adventure continues, the machine needs feeding too. Find the nearest gas station. Fill the tank. Then treat yourself — Diet Coke and chips are waiting inside. That\'s what she said.',
+    answer:['gas station','petrol','fuel','shell','bp','stop and shop','exxon','mobil','sunoco','convenience store'],
+    hints:['It\'s a gas station — any gas station nearby.','Route 9 has several. The car needs fuel. So do you.'],
+    choices:['Shell on Route 9','Stop & Shop Gas','Exxon on Route 9','Sunoco Amherst'],
+    mapsUrl:'https://maps.apple.com/?daddr=Shell+Gas+Station,+Hadley,+MA',
+    gMapsUrl:'https://maps.google.com/?daddr=Shell+Gas+Station,+Hadley,+MA',
+    task:'Fill up the car. Grab Diet Coke and chips from the store. Everyone has to pick one mystery snack for the others without showing them.',
+    photoKey:'gas_photo',
+    photoLabel:'Photo proof at the pump',
+    trivia:null,
+    gifts:{
+      him:{emoji:'🥤',name:'Diet Pepsi',note:'Premium fuel for the driver. You\'ve earned it.'},
+      her:{emoji:'🍟',name:'Chips',note:'Mystery flavour — chosen by someone who definitely knows your taste. Probably.'}
+    }
+  },
+  {
+    id:'pond',
+    name:'Puffer\'s Pond',
+    icon:'🌿',
+    riddle:'Find the pond that sits quietly behind the college like it has no idea how beautiful it is. Spread a blanket. There\'s a puzzle to finish, planes to fly, and someone has a dance to perform.',
+    answer:['puffers pond','puffer pond','the pond','puffers','amherst pond','mill river'],
+    hints:['It\'s a swimming and picnic spot in North Amherst, near UMass.','Puffer\'s Pond — the one locals know and tourists don\'t.'],
+    choices:['Puffer\'s Pond','Lawrence Swamp','Quabbin Reservoir','Cranberry Pond'],
+    mapsUrl:"https://maps.apple.com/?daddr=Puffer's+Pond,+Amherst,+MA",
+    gMapsUrl:"https://maps.google.com/?daddr=Puffer's+Pond,+Amherst,+MA",
+    task:'Three things: (1) Finish the jigsaw. (2) Everyone sketches one thing they see. (3) Paper plane competition — furthest plane wins main phone privileges at Quarters. Ghost in the mirror gets the throne.',
+    photoKey:'pond_photo',
+    photoLabel:'Upload your sketches + jigsaw photo',
+    trivia:{
+      type:'mc',
+      q:'Which vitamin is fat-soluble (stored in body fat) rather than water-soluble?',
+      opts:['Vitamin C','Vitamin B12','Vitamin A','Vitamin B6'],
+      correct:2,
+      explanation:'Vitamin A — along with D, E and K — are fat-soluble. Vitamin C and the B vitamins are water-soluble, meaning you excrete excess in urine. Chemistry major, was this too easy?'
+    },
+    gifts:{
+      him:{emoji:'📓',name:'Notebook + pen',note:'For the man of few words who thinks in systems. Write something down.'},
+      her:{emoji:'📓',name:'Notebook + pen',note:'For every thought that hits during a show while someone else cooks for three hours. Mao Mao would have written it down.'}
+    }
+  },
+  {
+    id:'quarters',
+    name:'Quarters',
+    icon:'🕹️',
+    riddle:'Go where tokens are currency and everyone becomes twelve years old again. An arcade in Hadley where the only acceptable response to losing is "one more game." The city planning here is chaotic but the vibes are right.',
+    answer:['quarters','arcade','hadley arcade','quarters arcade','the arcade'],
+    hints:['It\'s an arcade bar in Hadley, Massachusetts.','Quarters — on Route 9 in Hadley.'],
+    choices:['Quarters Arcade','Dave & Buster\'s Springfield','GameWorks','Pinball Pete\'s'],
+    mapsUrl:'https://maps.apple.com/?daddr=Quarters,+Hadley,+MA',
+    gMapsUrl:'https://maps.google.com/?daddr=Quarters,+Hadley,+MA',
+    task:'Play at least 3 different games. Whoever loses the most buys the next round of tokens.',
+    photoKey:'quarters_photo',
+    photoLabel:'Upload your Quarters photo',
+    trivia:null,
+    gifts:{
+      him:{emoji:'🧱',name:'Lego keychain',note:'Minimalist. Modular. Exactly your brand.'},
+      her:{emoji:'🧱',name:'Lego keychain',note:'Small, colourful, and holds everything together. Also you.'}
+    }
+  },
+  {
+    id:'home',
+    name:'Home',
+    icon:'🏠',
+    riddle:'The house that holds the memories.',
+    answer:['home','sugarloaf','our place','the flat','apartment','back home','our home','our flat'],
+    hints:['It\'s where this all started this morning.','The living room you can peek into from next door.'],
+    choices:['Home / Sugarloaf','The Library','Downtown Amherst','Mount Sugarloaf Summit'],
+    mapsUrl:null,
+    gMapsUrl:null,
+    task:'Three things in order: (1) Antifragile dance — she performs, organiser approves. (2) Paper planes — everyone writes one word on theirs, folds, flies. (3) Tea. No phones for 20 minutes.',
+    photoKey:'home_photo',
+    photoLabel:'Kitchen photo — the final one',
+    trivia:null,
+    gifts:{
+      him:{emoji:'🧴',name:'Kitchen towel',note:'You fed us brinjal curry and never once asked for applause. This is the applause. Accept it.'},
+      her:{emoji:'⌚',name:'Watch',note:'So you always know exactly how long you\'ve been watching someone else cook. Time is precious. So are you.'}
+    }
+  }
+];
+
+// En-route trivia (shown between pond and quarters)
+const ENROUTE_TRIVIA = [
+  {
+    type:'mc',
+    q:'In Frozen, what is the name of the kingdom where Elsa and Anna live?',
+    opts:['Narnia','Arendelle','Weselton','Corona'],
+    correct:1,
+    explanation:'Arendelle — inspired by Norway. Weselton is the Duke\'s kingdom and everyone always mispronounces it. Let it go.'
+  },
+  {
+    type:'lyrics',
+    song:'Chaudhary — Mame Khan, Coke Studio',
+    ytId:'1gukvtH_a3I',
+    startSec:224,
+    pauseSec:232,
+    prompt:'Complete the line: "Moh re liya tune aisa khela daav... Khaave hichkole ___"',
+    answer:'mhare mann ki naav',
+    acceptableAnswers:['mhare mann ki naav','mare mann ki naav','mhare man ki naav','mann ki naav','mera mann ki naav']
+  },
+  {
+    type:'lyrics',
+    song:'I Am A Girl Like You — Barbie: Princess & The Pauper',
+    ytId:'wTPw0YeQs5A',
+    startSec:38,
+    pauseSec:58,
+    prompt:'Complete: "It\'s cold and wet and still I get an omelet on my plate... But in my head I\'m back in bed ___"',
+    answer:'snuggled up and sleeping late',
+    acceptableAnswers:['snuggled up and sleeping late','snuggled up sleeping late','back in bed snuggled up','sleeping late']
+  },
+  {
+    type:'mc',
+    q:'What does the red line on a car\'s RPM gauge indicate?',
+    opts:['Optimal fuel efficiency zone','Engine redline — maximum safe RPM','Gear change reminder','Turbo boost activation'],
+    correct:1,
+    explanation:'The redline is the maximum RPM the engine can safely sustain. Cross it and you risk damaging the engine. A food scientist probably treats his engine better than his brinjal.'
+  }
+];
+
+// ─── APP STATE ─────────────────────────────────────────
+let S = {
+  code:null, name:null, role:null,
+  selRole:{c:null,j:null},
+  poll:null, lastHash:null, binId:null,
+  mediaRecorder:null, audioChunks:[], recording:false,
+  recTimer:null, recSecs:0,
+  enrouteIdx:0,
+  photos:{},
+  shareCode:null,
+  writing:false,  // write lock — poll skips render while writing
+  typing:false   // typing lock — poll skips render while user is in input
+};
+
+function saveSession(d){
+  try{
+    sessionStorage.setItem('hunt_session', JSON.stringify({
+      code:S.code, name:S.name, role:S.role, binId:S.binId, shareCode:S.shareCode,
+      // Save full server state snapshot so restore doesn't need to wait for JSONBin
+      snapshot: d || null
+    }));
+  }catch(e){}
+}
+
+function loadSession(){
+  try{
+    const raw=sessionStorage.getItem('hunt_session');
+    if(!raw)return null;
+    const sess=JSON.parse(raw);
+    if(!sess.binId||!sess.role)return null;
+    S.code=sess.code; S.name=sess.name; S.role=sess.role;
+    S.binId=sess.binId; S.shareCode=sess.shareCode;
+    return sess.snapshot||null;
+  }catch(e){return null;}
+}
+
+function clearSession(){
+  try{sessionStorage.removeItem('hunt_session');}catch(e){}
+}
+
+// On page load, restore session instantly from snapshot, then sync with server
+window.addEventListener('load', async()=>{
+  const snapshot=loadSession();
+  if(snapshot&&S.binId){
+    // Render immediately from local snapshot — no waiting for network
+    if(snapshot.started){
+      enterHuntScreen(snapshot);
+    } else {
+      enterLobby(snapshot);
+    }
+    // Then silently sync with server in background and update if newer
+    try{
+      const fresh=await readBin(S.binId);
+      const freshH=JSON.stringify(fresh);
+      const snapH=JSON.stringify(snapshot);
+      if(freshH!==snapH){
+        S.lastHash=freshH;
+        if(fresh.started) enterHuntScreen(fresh);
+        else enterLobby(fresh);
+      }
+    }catch(e){}
+  }
+});
+
+// ─── UTILS ────────────────────────────────────────────
+function show(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  const el=document.getElementById(id);
+  el.classList.add('active');
+  window.scrollTo(0,0);
+}
+
+const ORG_PASSWORD = 'Apple@123';
+let _pendingRoleEl=null, _pendingRole=null, _pendingGridId=null;
+
+function pickRole(el,role,gridId){
+  if(role==='organiser'){
+    _pendingRoleEl=el; _pendingRole=role; _pendingGridId=gridId;
+    showOrgPwModal();
+    return;
+  }
+  _applyRole(el,role,gridId);
+}
+
+function _applyRole(el,role,gridId){
+  const key=gridId.startsWith('c')?'c':'j';
+  S.selRole[key]=role;
+  document.querySelectorAll(`#${gridId} .role-btn`).forEach(b=>b.className='role-btn');
+  el.className=`role-btn sel-${role==='organiser'?'org':role}`;
+}
+
+function showOrgPwModal(){
+  const modal=document.getElementById('org-pw-modal');
+  modal.style.display='flex';
+  setTimeout(()=>document.getElementById('org-pw-input').focus(),100);
+}
+
+function closeOrgPwModal(){
+  document.getElementById('org-pw-modal').style.display='none';
+  document.getElementById('org-pw-input').value='';
+  document.getElementById('org-pw-err').style.display='none';
+  _pendingRoleEl=null; _pendingRole=null; _pendingGridId=null;
+}
+
+function checkOrgPassword(){
+  const val=document.getElementById('org-pw-input').value;
+  if(val===ORG_PASSWORD){
+    document.getElementById('org-pw-modal').style.display='none';
+    document.getElementById('org-pw-input').value='';
+    _applyRole(_pendingRoleEl,_pendingRole,_pendingGridId);
+    _pendingRoleEl=null; _pendingRole=null; _pendingGridId=null;
+  } else {
+    const errEl=document.getElementById('org-pw-err');
+    errEl.textContent='Wrong password. Try again.';
+    errEl.style.display='block';
+    document.getElementById('org-pw-input').value='';
+    document.getElementById('org-pw-input').focus();
+    setTimeout(()=>errEl.style.display='none',2500);
+  }
+}
+
+function setErr(id,msg){
+  const el=document.getElementById(id);
+  if(!el)return;
+  el.textContent=msg;el.style.display='block';
+  setTimeout(()=>el.style.display='none',3000);
+}
+
+function genCode(){return 'HUNT-'+Math.floor(1000+Math.random()*9000);}
+
+// ─── JSONBIN API ──────────────────────────────────────
+async function apiFetch(method,path,body){
+  const opts={method,headers:{'Content-Type':'application/json','X-Master-Key':API_KEY,'X-Access-Key':API_KEY}};
+  if(body)opts.body=JSON.stringify(body);
+  const r=await fetch(BASE+path,opts);
+  if(!r.ok)throw new Error(await r.text());
+  return r.json();
+}
+async function createBin(data){const r=await apiFetch('POST','/b',data);return r.metadata.id;}
+async function readBin(id){const r=await apiFetch('GET',`/b/${id}/latest`);return r.record;}
+async function writeBin(id,data){
+  S.writing=true;
+  try{
+    const r=await apiFetch('PUT',`/b/${id}`,data);
+    // Always save snapshot after successful write so restore is instant
+    saveSession(data);
+    return r;
+  }
+  finally{ setTimeout(()=>S.writing=false, 2000); }
+}
+
+function saveMap(code,binId){try{localStorage.setItem("hunt_"+code,binId);}catch(e){}}
+function getMap(code){try{return localStorage.getItem("hunt_"+code);}catch(e){return null;}}
+
+function encodeShareCode(code,binId){return code+"|"+binId;}
+function decodeShareCode(raw){
+  const parts=raw.split("|");
+  if(parts.length===2)return{code:parts[0].toUpperCase().trim(),binId:parts[1].trim()}; // binId kept as-is, case-sensitive
+  return{code:raw.toUpperCase().trim(),binId:null};
+}
+
+async function lookupCode(rawCode){
+  const {code,binId}=decodeShareCode(rawCode);
+  if(binId){saveMap(code,binId);return binId;}
+  const local=getMap(code);
+  if(local)return local;
+  return null;
+}
+
+// ─── HUNT CREATION ────────────────────────────────────
+async function createHunt(){
+  const name=document.getElementById('c-name').value.trim();
+  const role='organiser'; // Create is always organiser — no choice
+  if(!name)return setErr('c-err','Enter your name');
+  const code=genCode();
+  const huntData={
+    huntCode:code,
+    currentStop:0,
+    started:false,
+    preHuntDone:false,
+    unlocked:false,
+    guesses:{},
+    players:[{name,role}],
+    photos:{},
+    removedStops:[],
+    triviaAnswered:{},
+    enrouteIdx:0,
+    enrouteDone:false,
+    danceApproved:false,
+    jigsawApproved:false
+  };
+  try{
+    const binId=await createBin(huntData);
+    saveMap(code,binId);
+    S.code=code;S.name=name;S.role=role;S.binId=binId;
+    saveSession(huntData);
+    enterLobby(huntData);
+  }catch(e){setErr('c-err','Connection error — check your internet and try again.');}
+}
+
+async function joinHunt(){
+  // Do NOT toUpperCase the full string — binId is case-sensitive
+  const rawCode=document.getElementById('j-code').value.trim();
+  const name=document.getElementById('j-name').value.trim();
+  const role=S.selRole.j;
+  if(!rawCode)return setErr('j-err','Enter the hunt code');
+  if(!name)return setErr('j-err','Enter your name');
+  if(!role)return setErr('j-err','Pick a role');
+  try{
+    const binId=await lookupCode(rawCode);
+    if(!binId)return setErr('j-err','Hunt not found — check the code');
+    S.binId=binId;
+    const {code}=decodeShareCode(rawCode);
+    let d=await readBin(binId);
+    d.players=d.players.filter(p=>p.role!==role);
+    d.players.push({name,role});
+    await writeBin(binId,d);
+    S.code=code;S.name=name;S.role=role;
+    saveSession(d);
+    if(d.started){enterHuntScreen(d);return;}
+    enterLobby(d);
+  }catch(e){setErr('j-err','Connection error — try again');}
+}
+
+// ─── LOBBY ────────────────────────────────────────────
+function enterLobby(d){
+  // Build shareable code with binId embedded
+  const shareCode=encodeShareCode(S.code,S.binId);
+  S.shareCode=shareCode;
+  const codeEl=document.getElementById('l-code');
+  if(codeEl)codeEl.textContent=shareCode;
+  renderPlayers(d);
+  if(S.role==='organiser'){
+    document.getElementById('btn-start').style.display='block';
+    document.getElementById('l-hint').style.display='none';
+  }
+  show('s-lobby');
+  startPoll(async()=>{
+    const d2=await readBin(S.binId);
+    renderPlayers(d2);
+    if(d2.started){clearPoll();enterHuntScreen(d2);}
+  });
+}
+
+function renderPlayers(d){
+  const defs=[
+    {role:'organiser',emoji:'🎯',label:'Organiser',color:'var(--gold)'},
+    {role:'him',emoji:'🚗',label:'Driver',color:'var(--him)'},
+    {role:'her',emoji:'🌟',label:'Passenger',color:'var(--her)'}
+  ];
+  document.getElementById('l-players').innerHTML=defs.map(def=>{
+    const p=(d.players||[]).find(x=>x.role===def.role);
+    return `<div class="player-row">
+      <div style="font-size:20px;">${def.emoji}</div>
+      <div style="flex:1;">
+        <div style="font-size:11px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase;color:${def.color};">${def.label}</div>
+        <div style="font-size:15px;margin-top:2px;color:${p?'var(--text)':'var(--muted)'};">${p?p.name:'Waiting...'}</div>
+      </div>
+      <div class="pdot" style="background:${p?'var(--green)':'var(--surface3)'};"></div>
+    </div>`;
+  }).join('');
+}
+
+async function startHunt(){
+  const d=await readBin(S.binId);
+  d.started=true;d.currentStop=0;d.unlocked=false;d.guesses={};d.preHuntDone=false;
+  await writeBin(S.binId,d);
+  clearPoll();
+  enterHuntScreen(d);
+}
+
+// ─── HUNT SCREEN ROUTING ──────────────────────────────
+function enterHuntScreen(d){
+  if(S.role==='organiser'){
+    document.getElementById('o-name').textContent=S.name;
+    show('s-org');
+    renderOrg(d);
+    startPoll(async()=>{
+      const d2=await readBin(S.binId);
+      const h=JSON.stringify(d2);
+      if(h!==S.lastHash){S.lastHash=h;renderOrg(d2);}
+    });
+  } else {
+    const roleLabels={him:'Driver 🚗',her:'Passenger 🌟'};
+    document.getElementById('h-role-label').textContent=roleLabels[S.role]||S.role;
+    document.getElementById('h-name-label').textContent=S.name;
+    // Check if pre-hunt done
+    if(!d.preHuntDone && S.role==='him'){
+      show('s-prehunt');
+      renderPreHunt(d);
+    } else if(!d.preHuntDone && S.role==='her'){
+      show('s-prehunt');
+      document.getElementById('prehunt-content').innerHTML=`
+        <div class="card card-gold">
+          <p style="text-align:center;font-size:15px;line-height:1.8;">🎤 Waiting for the driver to<br>earn his stripes...</p>
+          <div class="poll-row mt12" style="justify-content:center;">
+            <div class="poll-dot"></div>
+            <span style="font-size:12px;color:var(--muted);">Listening in...</span>
+          </div>
+        </div>`;
+      startPoll(async()=>{
+        const d2=await readBin(S.binId);
+        if(d2.preHuntDone){clearPoll();show('s-hunt');renderHunt(d2);startHuntPolling();}
+      });
+    } else {
+      show('s-hunt');
+      renderHunt(d);
+      startHuntPolling();
+    }
+  }
+}
+
+// ─── PRE-HUNT: KANNADA SONG ───────────────────────────
+function renderPreHunt(d){
+  const el=document.getElementById('prehunt-content');
+  el.innerHTML=`
+    <div class="hint mb12" style="border-color:var(--gold);font-size:14px;">
+      🎵 Play <em>Anisuthide — Mungaru Male</em> on Spotify or YouTube, listen carefully, then complete the line below.
+    </div>
+    <div class="card card-gold mb16">
+      <h3 class="mb10">Complete this line</h3>
+      <p style="font-size:17px;font-style:italic;line-height:2;color:var(--text);">
+        "Anisuthide yaako indu,<br>
+        neenenay nannavaLendu,<br>
+        maayada lokadinda,<br>
+        nanagaagi ___________"
+      </p>
+    </div>
+    <div class="rec-zone mb12" id="prehunt-rec">
+      <button class="rec-btn" id="prehunt-rec-btn" onclick="toggleRecord('prehunt')">🎤</button>
+      <div class="rec-status" id="prehunt-rec-status">Tap to sing your answer</div>
+      <div class="rec-timer" id="prehunt-rec-timer" style="display:none;">0:00</div>
+    </div>
+    <div id="prehunt-result"></div>
+    <button class="btn btn-outline mt8" onclick="skipPrehunt()" style="font-size:13px;color:var(--muted);">Organiser approved it → Skip</button>
+  `;
+}
+
+async function skipPrehunt(){
+  const d=await readBin(S.binId);
+  d.preHuntDone=true;
+  await writeBin(S.binId,d);
+  show('s-hunt');
+  renderHunt(d);
+  startHuntPolling();
+}
+
+// ─── AUDIO RECORDING ──────────────────────────────────
+async function toggleRecord(context){
+  if(S.recording){
+    stopRecording(context);
+  } else {
+    await startRecording(context);
+  }
+}
+
+async function startRecording(context){
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    S.mediaRecorder=new MediaRecorder(stream);
+    S.audioChunks=[];
+    S.mediaRecorder.ondataavailable=e=>S.audioChunks.push(e.data);
+    S.mediaRecorder.onstop=()=>processRecording(context,stream);
+    S.mediaRecorder.start();
+    S.recording=true;
+    S.recSecs=0;
+    const btn=document.getElementById(`${context}-rec-btn`);
+    const status=document.getElementById(`${context}-rec-status`);
+    const timer=document.getElementById(`${context}-rec-timer`);
+    if(btn)btn.classList.add('recording');
+    if(status)status.textContent='Recording... tap to stop';
+    if(timer){timer.style.display='block';}
+    S.recTimer=setInterval(()=>{
+      S.recSecs++;
+      const m=Math.floor(S.recSecs/60);
+      const s=S.recSecs%60;
+      if(timer)timer.textContent=`${m}:${s.toString().padStart(2,'0')}`;
+      if(S.recSecs>=15)stopRecording(context);
+    },1000);
+  }catch(e){
+    alert('Microphone access needed. Please allow it in your browser settings.');
+  }
+}
+
+function stopRecording(context){
+  if(S.mediaRecorder&&S.recording){
+    S.recording=false;
+    clearInterval(S.recTimer);
+    S.mediaRecorder.stop();
+    const btn=document.getElementById(`${context}-rec-btn`);
+    const status=document.getElementById(`${context}-rec-status`);
+    if(btn)btn.classList.remove('recording');
+    if(status)status.textContent='Processing...';
+  }
+}
+
+async function processRecording(context,stream){
+  stream.getTracks().forEach(t=>t.stop());
+  const blob=new Blob(S.audioChunks,{type:'audio/webm'});
+  // Use Web Speech API fallback for checking
+  // Since we can't use Anthropic API directly for audio, do text fallback
+  const resultEl=document.getElementById(`${context}-result`);
+  if(resultEl){
+    resultEl.innerHTML=`
+      <div class="card card-gold mb12">
+        <p style="font-size:14px;margin-bottom:12px;">Could we hear you? Type what you sang to confirm:</p>
+        <input type="text" id="${context}-typed" placeholder="bandavaLendu..." class="mb8" autocomplete="off">
+        <button class="btn btn-gold btn-sm" onclick="checkLyrics('${context}')">Check it</button>
+      </div>`;
+  }
+}
+
+async function checkLyrics(context){
+  const input=document.getElementById(`${context}-typed`);
+  if(!input)return;
+  const typed=input.value.trim().toLowerCase();
+  const correct=['bandavalendu','bandawalendu','bandavalindu','bandawalindu','bandavalendo'];
+  const isCorrect=correct.some(c=>typed.includes(c.substring(0,8)));
+  const resultEl=document.getElementById(`${context}-result`);
+
+  if(isCorrect){
+    if(resultEl)resultEl.innerHTML=`<div class="card card-green"><p style="color:var(--green);font-weight:500;">✓ bandavaLendu — correct! The day can begin.</p></div>`;
+    setTimeout(async()=>{
+      const d=await readBin(S.binId);
+      d.preHuntDone=true;
+      await writeBin(S.binId,d);
+      show('s-hunt');
+      renderHunt(d);
+      startHuntPolling();
+    },1800);
+  } else {
+    if(resultEl)resultEl.innerHTML=`
+      <div style="background:rgba(212,122,106,0.1);border:0.5px solid var(--red);border-radius:12px;padding:14px;margin-bottom:12px;">
+        <p style="color:var(--red);font-size:14px;">Not quite. The answer is: <em style="color:var(--text);">bandavaLendu</em></p>
+        <p style="font-size:13px;color:var(--muted);margin-top:6px;">"From a magical world, it seems you came here just for me."</p>
+      </div>
+      <button class="btn btn-gold" onclick="skipPrehunt()">Organiser says it was close enough →</button>`;
+  }
+}
+
+// ─── HUNT VIEW ────────────────────────────────────────
+function getActiveStops(d){
+  return ALL_STOPS.filter(s=>!(d.removedStops||[]).includes(s.id));
+}
+
+function renderStopBar(currentIdx,activeStops){
+  document.getElementById('h-stopbar').innerHTML=activeStops.map((_,i)=>{
+    const dot=`<div class="sdot ${i<currentIdx?'done':i===currentIdx?'cur':''}"></div>`;
+    const line=i<activeStops.length-1?`<div class="sline ${i<currentIdx?'done':''}"></div>`:'';
+    return dot+line;
+  }).join('');
+  document.getElementById('h-counter').textContent=`${currentIdx+1} / ${activeStops.length}`;
+}
+
+function renderHunt(d){
+  // Don't re-render the guessing screen while user is actively typing
+  if(S.typing&&!d.unlocked) return;
+  const activeStops=getActiveStops(d);
+  if(d.currentStop>=activeStops.length){
+    renderDone(d);
+    return;
+  }
+
+  // Check if en-route trivia should show (between pond and quarters)
+  const curStop=activeStops[d.currentStop];
+  const prevStop=d.currentStop>0?activeStops[d.currentStop-1]:null;
+
+  // Show en-route trivia after pond unlocked and before quarters riddle
+  if(prevStop&&prevStop.id==='pond'&&curStop&&curStop.id==='quarters'&&!d.enrouteDone){
+    renderEnRoute(d,activeStops);
+    return;
+  }
+
+  renderStopBar(d.currentStop,activeStops);
+
+  const stop=curStop;
+  const el=document.getElementById('h-content');
+  el.className='fade-in';
+
+  if(d.unlocked){
+    el.innerHTML=renderUnlocked(stop,d.currentStop,activeStops,d);
+  } else {
+    el.innerHTML=renderGuessing(stop,d,activeStops);
+  }
+}
+
+function renderGuessing(stop,d,activeStops){
+  const guesses=d.guesses||{};
+  const mine=(guesses[S.role]||[]);
+  const showChoices=mine.length>=3;
+  const hints=stop.hints.slice(0,Math.max(0,mine.length-1));
+  const otherRole=S.role==='him'?'her':'him';
+  const otherGuesses=(guesses[otherRole]||[]);
+  const lastOther=otherGuesses[otherGuesses.length-1];
+  const otherEmoji=otherRole==='him'?'🚗':'🌟';
+
+  const hintsHtml=hints.map(h=>`<div class="hint">💡 ${h}</div>`).join('');
+  const othersHtml=lastOther?`<div class="others"><div class="guesser-row"><span>${otherEmoji}</span><span class="gval">"${lastOther}"</span><span style="color:var(--muted);font-size:11px;margin-left:4px;">(${otherGuesses.length})</span></div></div>`:'';
+
+  if(showChoices){
+    return `
+      <div class="riddle">"${stop.riddle}"</div>
+      ${hintsHtml}
+      <div class="label">Choose the location:</div>
+      <div class="choices">${stop.choices.map(c=>`<button class="choice" onclick="submitGuess('${c.replace(/'/g,"\\'")}',true)">${c}</button>`).join('')}</div>
+      ${othersHtml}`;
+  }
+
+  return `
+    <div class="riddle">"${stop.riddle}"</div>
+    ${hintsHtml}
+    <input type="text" id="g-input" placeholder="Type your guess..." style="margin-bottom:10px;" autocomplete="off" onkeydown="if(event.key==='Enter')submitGuess(this.value,false)" onfocus="S.typing=true" onblur="S.typing=false">
+    <button class="btn btn-gold mb8" onclick="submitGuess(document.getElementById('g-input').value,false)">Submit guess</button>
+    <div id="g-feedback" class="gfb"></div>
+    ${othersHtml}`;
+}
+
+async function submitGuess(guess,isChoice){
+  guess=guess.trim().toLowerCase().replace(/[‘’‚‛′‵'`]/g,'').replace(/[^a-z0-9\s]/g,' ').trim();
+  if(!guess)return;
+  S.typing=false;
+  const input=document.getElementById('g-input');
+  if(input)input.value='';
+  clearPoll();
+  S.writing=true; // lock poll for the whole operation
+
+  try {
+    // Fetch current state
+    const d=await readBin(S.binId);
+    if(!d.guesses)d.guesses={};
+    if(!d.guesses[S.role])d.guesses[S.role]=[];
+    d.guesses[S.role].push(guess);
+
+    const activeStops=getActiveStops(d);
+    const stop=activeStops[d.currentStop];
+    const correct=matchesAnswer(guess,stop.answer);
+
+    if(correct){
+      d.unlocked=true;
+      // Update local hash and snapshot BEFORE writing so poll never sees stale state
+      S.lastHash=JSON.stringify(d);
+      saveSession(d);
+      // Render immediately from local d — don't wait for anything
+      renderHunt(d);
+      // Write to server (fire and forget the rendering — we already rendered)
+      writeBin(S.binId,d).catch(()=>{});
+    } else {
+      S.lastHash=JSON.stringify(d);
+      saveSession(d);
+      writeBin(S.binId,d).catch(()=>{});
+      const fb=document.getElementById('g-feedback');
+      if(fb){
+        const n=d.guesses[S.role].length;
+        fb.className='gfb wrong';
+        fb.textContent=n===1?'Not quite — try again.':n===2?'Nope. A hint is coming...':'Still not it. One more hint...';
+        setTimeout(()=>{ renderHunt(d); },1300);
+      }
+    }
+  } catch(e) {
+    console.error('submitGuess error',e);
+  } finally {
+    setTimeout(()=>{ S.writing=false; startHuntPolling(); },3000);
+  }
+}
+
+function renderUnlocked(stop,stopIdx,activeStops,d){
+  const isLast=stopIdx>=activeStops.length-1;
+  const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
+  const mapUrl=isIOS?stop.mapsUrl:stop.gMapsUrl;
+  const mapsBtn=mapUrl?`<a href="${mapUrl}" class="btn-maps mb12" target="_blank">📍 Open in Maps</a>`:'';
+
+  // Trivia section
+  let triviaHtml='';
+  if(stop.trivia&&!d.triviaAnswered?.[stop.id]){
+    triviaHtml=renderTriviaSection(stop,d);
+  } else if(stop.trivia&&d.triviaAnswered?.[stop.id]){
+    triviaHtml=`<div class="card card-green mb12"><p style="color:var(--green);font-size:14px;">✓ Trivia answered</p></div>`;
+  }
+
+  // Photo upload
+  const photoKey=stop.photoKey;
+  const hasPhoto=S.photos[photoKey]||d.photos?.[photoKey];
+  const photoHtml=`
+    <div class="card mb12">
+      <h3 class="mb10">${stop.photoLabel||'Upload photo'}</h3>
+      <div class="photo-zone ${hasPhoto?'has-photo':''}" onclick="document.getElementById('photo-input-${photoKey}').click()">
+        ${hasPhoto
+          ?`<img src="${S.photos[photoKey]||d.photos?.[photoKey]}" style="width:100%;border-radius:10px;max-height:200px;object-fit:cover;">`
+          :`<div style="font-size:32px;margin-bottom:8px;">📸</div><div style="font-size:14px;color:var(--muted);">${stop.photoLabel||'Tap to upload'}</div>`
+        }
+      </div>
+      <input type="file" id="photo-input-${photoKey}" accept="image/*" style="display:none;" onchange="handlePhoto(this,'${photoKey}')">
+      ${hasPhoto?'<p style="font-size:12px;color:var(--green);margin-top:8px;text-align:center;">✓ Photo saved</p>':''}
+    </div>`;
+
+  // Gift section
+  const gift=stop.gifts[S.role];
+  const giftHtml=gift?`
+    <div class="card mb12">
+      <h3 class="mb10">A little something 🎁</h3>
+      <div class="gift-item">
+        <div class="gift-emoji">${gift.emoji}</div>
+        <div>
+          <div class="gift-name">${gift.name}</div>
+          <div class="gift-note">${gift.note}</div>
+        </div>
+      </div>
+    </div>`:'';
+
+  // Special home stop tasks
+  let homeHtml='';
+  if(stop.id==='home'){
+    homeHtml=renderHomeStop(d);
+  }
+
+  const nextBtn=!isLast
+    ?`<button class="btn btn-gold mt8" onclick="nextStop()">Ready for next clue →</button>`
+    :`<button class="btn btn-green mt8" onclick="finishHunt()">Finish the hunt 🎉</button>`;
+
+  return `
+    <div class="unlock-hero">
+      <div class="unlock-icon">${stop.icon}</div>
+      <h2 style="margin-bottom:6px;">${stop.name}</h2>
+      <p style="font-size:13px;">Stop ${stopIdx+1} unlocked</p>
+    </div>
+    ${mapsBtn}
+    <div class="card mb12">
+      <h3 class="mb8">Task</h3>
+      <div class="task">${stop.task}</div>
+    </div>
+    ${triviaHtml}
+    ${photoHtml}
+    ${giftHtml}
+    ${homeHtml}
+    ${nextBtn}`;
+}
+
+function renderTriviaSection(stop,d){
+  const t=stop.trivia;
+  if(t.type==='mc'){
+    return `
+      <div class="card card-gold mb12" id="trivia-${stop.id}">
+        <h3 class="mb12">Trivia</h3>
+        <div class="trivia-q">${t.q}</div>
+        <div class="trivia-opts">${t.opts.map((o,i)=>`<button class="trivia-opt" onclick="answerTrivia('${stop.id}',${i})">${o}</button>`).join('')}</div>
+      </div>`;
+  }
+  return '';
+}
+
+async function answerTrivia(stopId,idx){
+  const stop=ALL_STOPS.find(s=>s.id===stopId);
+  if(!stop)return;
+  const t=stop.trivia;
+  const opts=document.querySelectorAll(`#trivia-${stopId} .trivia-opt`);
+  opts.forEach((o,i)=>{
+    o.classList.remove('correct','wrong');
+    if(i===t.correct)o.classList.add('correct');
+    else if(i===idx&&idx!==t.correct)o.classList.add('wrong');
+    o.disabled=true;
+  });
+  clearPoll();
+  const d=await readBin(S.binId);
+  if(!d.triviaAnswered)d.triviaAnswered={};
+  d.triviaAnswered[stopId]={answered:true,correct:idx===t.correct};
+  S.lastHash=JSON.stringify(d);
+  await writeBin(S.binId,d);
+  startHuntPolling();
+  setTimeout(()=>{
+    const card=document.getElementById(`trivia-${stopId}`);
+    if(card)card.innerHTML+=`<div class="hint mt12" style="margin-bottom:0;">${idx===t.correct?'✓ Correct! ':'✗ Not quite — '}${t.explanation}</div>`;
+  },600);
+}
+
+// ─── HOME STOP SPECIAL ────────────────────────────────
+function renderHomeStop(d){
+  const danceApproved=d.danceApproved;
+  if(S.role==='her'){
+    return `
+      <div class="card card-her mb12">
+        <h3 class="mb10">Your moment 🌟</h3>
+        <p style="font-size:14px;line-height:1.7;margin-bottom:12px;">Time to perform. <em>Antifragile — LE SSERAFIM.</em> Give it your best 8 counts. The organiser is watching.</p>
+        ${danceApproved
+          ?'<p style="color:var(--green);font-weight:500;">✓ Dance approved! You absolutely ate that.</p>'
+          :'<div class="poll-row"><div class="poll-dot"></div><span style="font-size:13px;color:var(--muted);">Waiting for organiser approval...</span></div>'
+        }
+      </div>`;
+  }
+  return '';
+}
+
+// ─── EN-ROUTE TRIVIA ──────────────────────────────────
+function renderEnRoute(d,activeStops){
+  renderStopBar(d.currentStop,activeStops);
+  const el=document.getElementById('h-content');
+  el.className='fade-in';
+  const idx=d.enrouteIdx||0;
+  if(idx>=ENROUTE_TRIVIA.length){
+    // all done
+    advanceEnRoute(d,true);
+    return;
+  }
+  const q=ENROUTE_TRIVIA[idx];
+  const skipBtn=`<button class="btn btn-ghost mt8" style="width:100%;text-align:center;font-size:12px;" onclick="advanceEnRoute(null,false)">Organiser says close enough → skip</button>`;
+
+  if(q.type==='mc'){
+    el.innerHTML=`
+      <div class="card card-gold mb16">
+        <h3 class="mb8">En route — Question ${idx+1} of ${ENROUTE_TRIVIA.length}</h3>
+        <div class="trivia-q">${q.q}</div>
+        <div class="trivia-opts">${q.opts.map((o,i)=>`<button class="trivia-opt" onclick="answerEnRoute(${i})">${o}</button>`).join('')}</div>
+      </div>
+      ${skipBtn}`;
+  } else if(q.type==='lyrics'){
+    el.innerHTML=`
+      <div class="card card-gold mb12">
+        <h3 class="mb8">En route — Lyrics ${idx+1} of ${ENROUTE_TRIVIA.length}</h3>
+        <p style="font-size:13px;color:var(--muted);">${q.song}</p>
+      </div>
+      <div class="yt-wrap">
+        <div id="yt-player-enroute"></div>
+        <div class="yt-overlay" id="yt-overlay-enroute" onclick="playYT('enroute',${q.startSec},${q.pauseSec},'${q.ytId}')">
+          <div class="yt-play-btn">▶</div>
+          <div class="yt-play-label">Tap to play the clip</div>
+        </div>
+      </div>
+      <div class="card mb12">
+        <p style="font-style:italic;font-size:16px;color:var(--text);line-height:1.8;">${q.prompt}</p>
+      </div>
+      <div id="enroute-result" class="mb8"></div>
+      <input type="text" id="enroute-typed" placeholder="Type your answer..." class="mb8" autocomplete="off" onfocus="S.typing=true" onblur="S.typing=false" onkeydown="if(event.key==='Enter')checkEnRouteLyrics()">
+      <button class="btn btn-gold mb8" onclick="checkEnRouteLyrics()">Check answer</button>
+      ${skipBtn}`;
+    initYTPlayer('enroute', q.ytId);
+  }
+}
+
+async function answerEnRoute(idx){
+  clearPoll();
+  const d=await readBin(S.binId);
+  const q=ENROUTE_TRIVIA[d.enrouteIdx||0];
+  const opts=document.querySelectorAll('.trivia-opt');
+  opts.forEach((o,i)=>{
+    if(i===q.correct)o.classList.add('correct');
+    else if(i===idx&&idx!==q.correct)o.classList.add('wrong');
+    o.disabled=true;
+  });
+  setTimeout(()=>advanceEnRoute(d,false),1800);
+}
+
+async function checkEnRouteLyrics(){
+  clearPoll();
+  const input=document.getElementById('enroute-typed');
+  const typed=(input?input.value:'').trim().toLowerCase();
+  const d=await readBin(S.binId);
+  const q=ENROUTE_TRIVIA[d.enrouteIdx||0];
+  const correct=q.acceptableAnswers.some(a=>matchesAnswer(typed,[a]));
+  const resultEl=document.getElementById('enroute-result');
+  if(resultEl){
+    if(correct){
+      resultEl.innerHTML=`<div class="card card-green mb8"><p style="color:var(--green);">✓ Correct! "${q.answer}"</p></div>`;
+    } else {
+      resultEl.innerHTML=`<div style="background:rgba(212,122,106,0.1);border:0.5px solid var(--red);border-radius:12px;padding:12px;margin-bottom:8px;"><p style="color:var(--red);font-size:14px;">The answer: <em style="color:var(--text);">"${q.answer}"</em></p></div>`;
+    }
+  }
+  setTimeout(()=>advanceEnRoute(null,false),1600);
+}
+
+async function advanceEnRoute(ignored, skip){
+  clearPoll();
+  const d=await readBin(S.binId);
+  const nextIdx=(d.enrouteIdx||0)+(skip?0:1);
+  if(nextIdx>=ENROUTE_TRIVIA.length){
+    d.enrouteDone=true;
+    d.enrouteIdx=nextIdx;
+    S.lastHash=JSON.stringify(d);
+    await writeBin(S.binId,d);
+    renderHunt(d);
+    startHuntPolling();
+  } else {
+    d.enrouteIdx=nextIdx;
+    S.lastHash=JSON.stringify(d);
+    await writeBin(S.binId,d);
+    renderEnRoute(d,getActiveStops(d));
+    startHuntPolling();
+  }
+}
+
+// ─── PHOTO HANDLING ───────────────────────────────────
+async function handlePhoto(input,photoKey){
+  const file=input.files[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=async(e)=>{
+    const b64=e.target.result;
+    S.photos[photoKey]=b64;
+    // Save to remote
+    try{
+      const d=await readBin(S.binId);
+      if(!d.photos)d.photos={};
+      d.photos[photoKey]=b64;
+      await writeBin(S.binId,d);
+    }catch(err){console.log('Photo save failed, stored locally');}
+    // Re-render current stop
+    const d2=await readBin(S.binId);
+    renderHunt(d2);
+  };
+  reader.readAsDataURL(file);
+}
+
+// ─── NEXT STOP ────────────────────────────────────────
+async function nextStop(){
+  clearPoll();
+  S.writing=true;
+  try{
+    // Use snapshot for current stop index — avoids stale JSONBin read
+    let snap={};
+    try{ snap=JSON.parse(sessionStorage.getItem('hunt_session')||'{}').snapshot||{}; }catch(e){}
+    const activeStops=getActiveStops({removedStops:snap.removedStops||[]});
+    if((snap.currentStop||0)<activeStops.length-1){
+      const nextD=Object.assign({},snap,{
+        currentStop:(snap.currentStop||0)+1,
+        unlocked:false,
+        guesses:{}
+      });
+      S.lastHash=JSON.stringify(nextD);
+      saveSession(nextD);
+      renderHunt(nextD); // render immediately from local state
+      // Write to server in background
+      readBin(S.binId).then(d=>{
+        d.currentStop=nextD.currentStop;
+        d.unlocked=false;
+        d.guesses={};
+        return writeBin(S.binId,d);
+      }).catch(()=>{});
+    }
+  }catch(e){console.error('nextStop error',e);}
+  finally{ setTimeout(()=>{ S.writing=false; startHuntPolling(); },3000); }
+}
+
+async function triggerFinish(){
+  if(!confirm('Reveal the final collage for everyone?')) return;
+  clearPoll();
+  S.writing=true;
+  try{
+    const d=await readBin(S.binId);
+    d.finished=true;
+    S.lastHash=JSON.stringify(d);
+    saveSession(d);
+    await writeBin(S.binId,d);
+    renderDone(d);
+  }catch(e){ alert('Could not trigger finish — try again.'); }
+  finally{ setTimeout(()=>{ S.writing=false; },2000); }
+}
+
+async function finishHunt(){
+  const d=await readBin(S.binId);
+  d.finished=true;
+  await writeBin(S.binId,d);
+  renderDone(d);
+}
+
+function renderDone(d){
+  const date=new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+  const dateEl=document.getElementById('frame-date');
+  if(dateEl)dateEl.textContent=date;
+
+  const allPhotoKeys=['sugarloaf_photo','saigon_photo','gas_photo','pond_photo','quarters_photo','home_photo'];
+  const photos=d.photos||{};
+  const available=allPhotoKeys.filter(k=>photos[k]||S.photos[k]);
+  const grid=document.getElementById('frame-grid');
+
+  if(available.length===0){
+    grid.className='frame-grid';
+    grid.innerHTML=`<div style="grid-column:span 2;padding:40px 20px;text-align:center;color:var(--muted);font-size:13px;line-height:1.8;">Photos from the day will appear here.<br>Upload them at each stop.</div>`;
+  } else {
+    const n=available.length;
+    grid.className='frame-grid'+(n===1?' one':n===3||n===5?' three':'');
+    grid.innerHTML=available.map((k,i)=>{
+      const src=S.photos[k]||photos[k];
+      // Alternate aspect ratios for visual interest
+      const style=n>=4&&i===0?'aspect-ratio:2/1;':'';
+      return `<img class="frame-photo" src="${src}" alt="stop ${i+1}" style="${style}">`;
+    }).join('');
+  }
+  show('s-done');
+}
+
+function saveFrame(){
+  const grid=document.getElementById('frame-grid');
+  // Simple download via canvas would require CORS — just share instructions
+  alert('Screenshot this screen to save your photo frame! 📸');
+}
+
+// ─── ORGANISER VIEW ───────────────────────────────────
+function renderOrg(d){
+  const activeStops=getActiveStops(d);
+  document.getElementById('btn-force').style.display=d.currentStop>=activeStops.length-1?'none':'block';
+
+  // Home stop dance approval
+  const curStop=activeStops[d.currentStop];
+  const showDanceBtn=curStop&&curStop.id==='home'&&d.unlocked&&!d.danceApproved;
+
+  const stopsHtml=ALL_STOPS.map((s,i)=>{
+    const isRemoved=(d.removedStops||[]).includes(s.id);
+    const activeIdx=activeStops.findIndex(a=>a.id===s.id);
+    const isDone=activeIdx>=0&&activeIdx<d.currentStop;
+    const isCurr=activeIdx>=0&&activeIdx===d.currentStop;
+    const g=d.guesses||{};
+    const him=(g.him||[]);
+    const her=(g.her||[]);
+    let guessHtml='';
+    if(isCurr&&!d.unlocked){
+      guessHtml=`<div class="org-guesses" style="margin-top:12px;padding-top:12px;border-top:0.5px solid var(--border);">
+        <div class="guesser-row">🚗 <span style="font-size:12px;color:var(--him);">Driver</span>: <span class="gval">${him.length?'"'+him[him.length-1]+'"':'—'}</span> <span style="color:var(--muted);font-size:11px;">(${him.length})</span></div>
+        <div class="guesser-row mt4">🌟 <span style="font-size:12px;color:var(--her);">Passenger</span>: <span class="gval">${her.length?'"'+her[her.length-1]+'"':'—'}</span> <span style="color:var(--muted);font-size:11px;">(${her.length})</span></div>
+      </div>`;
+    }
+    if(isCurr&&d.unlocked){
+      guessHtml=`<div style="margin-top:8px;"><span style="color:var(--green);font-size:13px;">✓ Unlocked</span></div>`;
+    }
+    return `<div class="org-stop ${isRemoved?'removed':isDone?'done':isCurr?'active':''}">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div class="org-num ${isDone?'done':isCurr?'active':''}">${isDone?'✓':activeIdx>=0?activeIdx+1:'—'}</div>
+        <div style="flex:1;font-size:15px;">${s.icon} ${s.name}</div>
+        <div style="font-size:11px;color:var(--muted);">${isRemoved?'removed':isDone?'done':isCurr?'active':'upcoming'}</div>
+      </div>
+      ${guessHtml}
+    </div>`;
+  }).join('');
+
+  const danceApprovalHtml=showDanceBtn?`
+    <div class="card card-her mb12">
+      <h3 class="mb8">Dance approval needed 🌟</h3>
+      <p style="font-size:14px;margin-bottom:12px;">Did she nail the Antifragile choreography?</p>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-green btn-sm" onclick="approveDance()">She ate ✓</button>
+        <button class="btn btn-outline btn-sm" onclick="approveDance()">Close enough →</button>
+      </div>
+    </div>`:'';
+
+  document.getElementById('o-content').innerHTML=danceApprovalHtml+stopsHtml;
+}
+
+async function approveDance(){
+  clearPoll();
+  const d=await readBin(S.binId);
+  d.danceApproved=true;
+  S.lastHash=JSON.stringify(d);
+  await writeBin(S.binId,d);
+  renderOrg(d);
+  startPoll(async()=>{
+    const d2=await readBin(S.binId);
+    const h=JSON.stringify(d2);
+    if(h!==S.lastHash){S.lastHash=h;renderOrg(d2);}
+  });
+}
+
+async function forceUnlock(){
+  clearPoll();
+  const d=await readBin(S.binId);
+  d.unlocked=true;
+  S.lastHash=JSON.stringify(d);
+  await writeBin(S.binId,d);
+  renderOrg(d);
+  startPoll(async()=>{
+    const d2=await readBin(S.binId);
+    const h=JSON.stringify(d2);
+    if(h!==S.lastHash){S.lastHash=h;renderOrg(d2);}
+  });
+}
+
+function showRemoveModal(){
+  const modal=document.getElementById('remove-modal');
+  modal.style.display='flex';
+  // populate list
+  const list=document.getElementById('remove-list');
+  list.innerHTML=ALL_STOPS.map(s=>`
+    <button class="btn btn-outline" style="text-align:left;padding:12px 14px;font-size:14px;" onclick="removeStop('${s.id}')">
+      ${s.icon} ${s.name}
+    </button>`).join('');
+}
+
+function closeRemoveModal(){
+  document.getElementById('remove-modal').style.display='none';
+}
+
+async function removeStop(stopId){
+  closeRemoveModal();
+  const d=await readBin(S.binId);
+  if(!d.removedStops)d.removedStops=[];
+  if(!d.removedStops.includes(stopId)){
+    d.removedStops.push(stopId);
+    await writeBin(S.binId,d);
+    renderOrg(d);
+  }
+}
+
+// ─── POLLING ──────────────────────────────────────────
+function startPoll(fn){clearPoll();S.poll=setInterval(fn,4000);}
+function clearPoll(){if(S.poll){clearInterval(S.poll);S.poll=null;}}
+
+// ─── YOUTUBE PLAYER ───────────────────────────────────
+let YT_PLAYERS = {};
+let YT_API_READY = false;
+
+function onYouTubeIframeAPIReady(){
+  YT_API_READY = true;
+}
+
+function initYTPlayer(id, videoId){
+  // Small delay to ensure DOM element exists
+  setTimeout(()=>{
+    const el = document.getElementById('yt-player-'+id);
+    if(!el) return;
+    if(YT_PLAYERS[id]){ try{ YT_PLAYERS[id].destroy(); }catch(e){} }
+    if(!YT_API_READY || typeof YT === 'undefined' || !YT.Player){
+      // API not ready yet, retry
+      setTimeout(()=>initYTPlayer(id, videoId), 500);
+      return;
+    }
+    YT_PLAYERS[id] = new YT.Player('yt-player-'+id, {
+      height:'210',
+      width:'100%',
+      videoId: videoId,
+      playerVars:{
+        playsinline:1,
+        controls:1,
+        rel:0,
+        modestbranding:1
+      },
+      events:{
+        onReady: (e)=>{ /* ready */ },
+        onStateChange: (e)=>{
+          // handled by playYT interval
+        }
+      }
+    });
+  }, 200);
+}
+
+function playYT(id, startSec, pauseSec, videoId){
+  const overlay = document.getElementById('yt-overlay-'+id);
+  if(overlay) overlay.classList.add('hidden');
+  const player = YT_PLAYERS[id];
+  if(!player){ initYTPlayer(id, videoId); setTimeout(()=>playYT(id,startSec,pauseSec,videoId),800); return; }
+  try{
+    player.seekTo(startSec, true);
+    player.playVideo();
+    // Poll to pause at the right second
+    const interval = setInterval(()=>{
+      try{
+        const cur = player.getCurrentTime();
+        if(cur >= pauseSec){
+          player.pauseVideo();
+          clearInterval(interval);
+          // Show "record now" prompt
+          const resultEl = document.getElementById(id==='prehunt'?'prehunt-result':'enroute-result');
+          if(resultEl && !resultEl.innerHTML){
+            resultEl.innerHTML = '<div class="hint" style="border-color:var(--gold);color:var(--gold);">🎤 Now complete the line below!</div>';
+          }
+        }
+      }catch(e){ clearInterval(interval); }
+    }, 250);
+  }catch(e){
+    // Player not ready
+    setTimeout(()=>playYT(id,startSec,pauseSec,videoId),500);
+  }
+}
+
+function startHuntPolling(){
+  clearPoll();
+  startPoll(async()=>{
+    // Skip poll render if a write is in flight or user is typing — prevents glitch-back
+    if(S.writing||S.typing) return;
+    const d2=await readBin(S.binId);
+    const h=JSON.stringify(d2);
+    if(h!==S.lastHash){
+      S.lastHash=h;
+      const active=document.querySelector('.screen.active');
+      if(active){
+        const id=active.id;
+        if(id==='s-hunt'){
+          if(d2.finished){ renderDone(d2); return; }
+          renderHunt(d2);
+        }
+        else if(id==='s-prehunt'&&d2.preHuntDone){clearPoll();show('s-hunt');renderHunt(d2);startHuntPolling();}
+        else if(id==='s-done') return;
+      }
+    }
+  });
+}
+</script>
+</body>
+</html>
