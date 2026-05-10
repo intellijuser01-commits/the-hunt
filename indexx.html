@@ -575,7 +575,8 @@ let S = {
   enrouteIdx:0,
   photos:{},
   shareCode:null,
-  writing:false  // write lock — poll skips render while writing
+  writing:false,  // write lock — poll skips render while writing
+  typing:false   // typing lock — poll skips render while user is in input
 };
 
 function saveSession(d){
@@ -1019,6 +1020,8 @@ function renderStopBar(currentIdx,activeStops){
 }
 
 function renderHunt(d){
+  // Don't re-render the guessing screen while user is actively typing
+  if(S.typing&&!d.unlocked) return;
   const activeStops=getActiveStops(d);
   if(d.currentStop>=activeStops.length){
     renderDone(d);
@@ -1073,7 +1076,7 @@ function renderGuessing(stop,d,activeStops){
   return `
     <div class="riddle">"${stop.riddle}"</div>
     ${hintsHtml}
-    <input type="text" id="g-input" placeholder="Type your guess..." style="margin-bottom:10px;" autocomplete="off" onkeydown="if(event.key==='Enter')submitGuess(this.value,false)">
+    <input type="text" id="g-input" placeholder="Type your guess..." style="margin-bottom:10px;" autocomplete="off" onkeydown="if(event.key==='Enter')submitGuess(this.value,false)" onfocus="S.typing=true" onblur="S.typing=false">
     <button class="btn btn-gold mb8" onclick="submitGuess(document.getElementById('g-input').value,false)">Submit guess</button>
     <div id="g-feedback" class="gfb"></div>
     ${othersHtml}`;
@@ -1082,56 +1085,48 @@ function renderGuessing(stop,d,activeStops){
 async function submitGuess(guess,isChoice){
   guess=guess.trim().toLowerCase().replace(/[‘’‚‛′‵'`]/g,'').replace(/[^a-z0-9\s]/g,' ').trim();
   if(!guess)return;
+  S.typing=false;
   const input=document.getElementById('g-input');
   if(input)input.value='';
   clearPoll();
+  S.writing=true; // lock poll for the whole operation
 
-  // Get current state from session snapshot — avoids stale JSONBin reads
-  let snap={};
-  try{ snap=JSON.parse(sessionStorage.getItem('hunt_session')||'{}').snapshot||{}; }catch(e){}
-  const activeStops=getActiveStops({removedStops:snap.removedStops||[]});
-  const stop=activeStops[snap.currentStop||0];
-  const correct=matchesAnswer(guess,stop.answer);
+  try {
+    // Fetch current state
+    const d=await readBin(S.binId);
+    if(!d.guesses)d.guesses={};
+    if(!d.guesses[S.role])d.guesses[S.role]=[];
+    d.guesses[S.role].push(guess);
 
-  if(correct){
-    // Render unlocked immediately from local snapshot — never wait for network
-    const localD=Object.assign({},snap,{unlocked:true});
-    S.lastHash=JSON.stringify(localD);
-    saveSession(localD);
-    renderHunt(localD);
-    // Write to server in background, don't await before rendering
-    readBin(S.binId).then(d=>{
-      if(!d.guesses)d.guesses={};
-      if(!d.guesses[S.role])d.guesses[S.role]=[];
-      d.guesses[S.role].push(guess);
+    const activeStops=getActiveStops(d);
+    const stop=activeStops[d.currentStop];
+    const correct=matchesAnswer(guess,stop.answer);
+
+    if(correct){
       d.unlocked=true;
-      return writeBin(S.binId,d);
-    }).catch(()=>{});
-    startHuntPolling();
-  } else {
-    // Wrong — update guess count locally first, then write
-    const localD=Object.assign({},snap);
-    if(!localD.guesses)localD.guesses={};
-    if(!localD.guesses[S.role])localD.guesses[S.role]=[];
-    localD.guesses[S.role].push(guess);
-    S.lastHash=JSON.stringify(localD);
-    saveSession(localD);
-    // Write in background
-    readBin(S.binId).then(d=>{
-      if(!d.guesses)d.guesses={};
-      if(!d.guesses[S.role])d.guesses[S.role]=[];
-      d.guesses[S.role].push(guess);
-      return writeBin(S.binId,d);
-    }).catch(()=>{});
-    const fb=document.getElementById('g-feedback');
-    if(fb){
-      const n=localD.guesses[S.role].length;
-      fb.className='gfb wrong';
-      fb.textContent=n===1?'Not quite — try again.':n===2?'Nope. A hint is coming...':'Still not it. One more hint...';
-      setTimeout(()=>{ renderHunt(localD); startHuntPolling(); },1300);
+      // Update local hash and snapshot BEFORE writing so poll never sees stale state
+      S.lastHash=JSON.stringify(d);
+      saveSession(d);
+      // Render immediately from local d — don't wait for anything
+      renderHunt(d);
+      // Write to server (fire and forget the rendering — we already rendered)
+      writeBin(S.binId,d).catch(()=>{});
     } else {
-      startHuntPolling();
+      S.lastHash=JSON.stringify(d);
+      saveSession(d);
+      writeBin(S.binId,d).catch(()=>{});
+      const fb=document.getElementById('g-feedback');
+      if(fb){
+        const n=d.guesses[S.role].length;
+        fb.className='gfb wrong';
+        fb.textContent=n===1?'Not quite — try again.':n===2?'Nope. A hint is coming...':'Still not it. One more hint...';
+        setTimeout(()=>{ renderHunt(d); },1300);
+      }
     }
+  } catch(e) {
+    console.error('submitGuess error',e);
+  } finally {
+    setTimeout(()=>{ S.writing=false; startHuntPolling(); },3000);
   }
 }
 
@@ -1379,17 +1374,21 @@ async function handlePhoto(input,photoKey){
 // ─── NEXT STOP ────────────────────────────────────────
 async function nextStop(){
   clearPoll();
-  const d=await readBin(S.binId);
-  const activeStops=getActiveStops(d);
-  if(d.currentStop<activeStops.length-1){
-    d.currentStop++;
-    d.unlocked=false;
-    d.guesses={};
-    S.lastHash=JSON.stringify(d);
-    await writeBin(S.binId,d);
-    renderHunt(d);
-    startHuntPolling();
-  }
+  S.writing=true;
+  try{
+    const d=await readBin(S.binId);
+    const activeStops=getActiveStops(d);
+    if(d.currentStop<activeStops.length-1){
+      d.currentStop++;
+      d.unlocked=false;
+      d.guesses={};
+      S.lastHash=JSON.stringify(d);
+      saveSession(d);
+      renderHunt(d); // render immediately
+      writeBin(S.binId,d).catch(()=>{}); // write in background
+    }
+  }catch(e){console.error('nextStop error',e);}
+  finally{ setTimeout(()=>{ S.writing=false; startHuntPolling(); },3000); }
 }
 
 async function finishHunt(){
@@ -1598,8 +1597,8 @@ function playYT(id, startSec, pauseSec, videoId){
 function startHuntPolling(){
   clearPoll();
   startPoll(async()=>{
-    // Skip poll render if a write is in flight — prevents glitch-back
-    if(S.writing) return;
+    // Skip poll render if a write is in flight or user is typing — prevents glitch-back
+    if(S.writing||S.typing) return;
     const d2=await readBin(S.binId);
     const h=JSON.stringify(d2);
     if(h!==S.lastHash){
