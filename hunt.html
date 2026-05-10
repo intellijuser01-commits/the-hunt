@@ -227,6 +227,7 @@ input::placeholder{color:var(--muted);}
     <p style="margin-bottom:32px;">One car. Three people. Zero spoilers.<br>A day worth remembering.</p>
   </div>
   <button class="btn btn-gold mb8" onclick="show('s-create')">Create a new hunt</button>
+  <p style="text-align:center;font-size:11px;color:var(--muted);margin-bottom:12px;">Organiser password required</p>
   <button class="btn btn-outline" onclick="show('s-join')">Join existing hunt</button>
 </div>
 
@@ -240,9 +241,10 @@ input::placeholder{color:var(--muted);}
   <div class="label">Your role</div>
   <div class="role-grid" id="c-roles">
     <div class="role-btn" onclick="pickRole(this,'organiser','c-roles')"><div class="role-emoji">🎯</div><div class="role-name org">Organiser</div></div>
-    <div class="role-btn" onclick="pickRole(this,'him','c-roles')"><div class="role-emoji">🚗</div><div class="role-name him">Driver</div></div>
-    <div class="role-btn" onclick="pickRole(this,'her','c-roles')"><div class="role-emoji">🌟</div><div class="role-name her">Passenger</div></div>
+    <div class="role-btn" style="opacity:0.3;cursor:not-allowed;" title="Join the hunt instead"><div class="role-emoji">🚗</div><div class="role-name him">Driver</div></div>
+    <div class="role-btn" style="opacity:0.3;cursor:not-allowed;" title="Join the hunt instead"><div class="role-emoji">🌟</div><div class="role-name her">Passenger</div></div>
   </div>
+  <p style="font-size:12px;color:var(--muted);margin-top:-8px;">Driver and Passenger should use <strong style="color:var(--text);">Join existing hunt</strong></p>
   <div id="c-err" class="err" style="display:none"></div>
   <div class="spacer"></div>
   <button class="btn btn-gold" onclick="createHunt()">Generate hunt code</button>
@@ -571,13 +573,16 @@ let S = {
   recTimer:null, recSecs:0,
   enrouteIdx:0,
   photos:{},
-  shareCode:null
+  shareCode:null,
+  writing:false  // write lock — poll skips render while writing
 };
 
-function saveSession(){
+function saveSession(d){
   try{
     sessionStorage.setItem('hunt_session', JSON.stringify({
-      code:S.code, name:S.name, role:S.role, binId:S.binId, shareCode:S.shareCode
+      code:S.code, name:S.name, role:S.role, binId:S.binId, shareCode:S.shareCode,
+      // Save full server state snapshot so restore doesn't need to wait for JSONBin
+      snapshot: d || null
     }));
   }catch(e){}
 }
@@ -585,33 +590,40 @@ function saveSession(){
 function loadSession(){
   try{
     const raw=sessionStorage.getItem('hunt_session');
-    if(!raw)return false;
+    if(!raw)return null;
     const sess=JSON.parse(raw);
-    if(!sess.binId||!sess.role)return false;
+    if(!sess.binId||!sess.role)return null;
     S.code=sess.code; S.name=sess.name; S.role=sess.role;
     S.binId=sess.binId; S.shareCode=sess.shareCode;
-    return true;
-  }catch(e){return false;}
+    return sess.snapshot||null;
+  }catch(e){return null;}
 }
 
 function clearSession(){
   try{sessionStorage.removeItem('hunt_session');}catch(e){}
 }
 
-// On page load, try to restore session
+// On page load, restore session instantly from snapshot, then sync with server
 window.addEventListener('load', async()=>{
-  if(loadSession()){
+  const snapshot=loadSession();
+  if(snapshot&&S.binId){
+    // Render immediately from local snapshot — no waiting for network
+    if(snapshot.started){
+      enterHuntScreen(snapshot);
+    } else {
+      enterLobby(snapshot);
+    }
+    // Then silently sync with server in background and update if newer
     try{
-      const d=await readBin(S.binId);
-      if(d&&d.started){
-        enterHuntScreen(d);
-        return;
-      } else if(d&&!d.started){
-        enterLobby(d);
-        return;
+      const fresh=await readBin(S.binId);
+      const freshH=JSON.stringify(fresh);
+      const snapH=JSON.stringify(snapshot);
+      if(freshH!==snapH){
+        S.lastHash=freshH;
+        if(fresh.started) enterHuntScreen(fresh);
+        else enterLobby(fresh);
       }
     }catch(e){}
-    clearSession();
   }
 });
 
@@ -691,7 +703,16 @@ async function apiFetch(method,path,body){
 }
 async function createBin(data){const r=await apiFetch('POST','/b',data);return r.metadata.id;}
 async function readBin(id){const r=await apiFetch('GET',`/b/${id}/latest`);return r.record;}
-async function writeBin(id,data){return apiFetch('PUT',`/b/${id}`,data);}
+async function writeBin(id,data){
+  S.writing=true;
+  try{
+    const r=await apiFetch('PUT',`/b/${id}`,data);
+    // Always save snapshot after successful write so restore is instant
+    saveSession(data);
+    return r;
+  }
+  finally{ setTimeout(()=>S.writing=false, 2000); }
+}
 
 function saveMap(code,binId){try{localStorage.setItem("hunt_"+code,binId);}catch(e){}}
 function getMap(code){try{return localStorage.getItem("hunt_"+code);}catch(e){return null;}}
@@ -717,6 +738,7 @@ async function createHunt(){
   const role=S.selRole.c;
   if(!name)return setErr('c-err','Enter your name');
   if(!role)return setErr('c-err','Pick a role');
+  if(role!=='organiser')return setErr('c-err','Only the organiser can create a hunt. Driver and Passenger should join.');
   const code=genCode();
   const huntData={
     huntCode:code,
@@ -738,7 +760,7 @@ async function createHunt(){
     const binId=await createBin(huntData);
     saveMap(code,binId);
     S.code=code;S.name=name;S.role=role;S.binId=binId;
-    saveSession();
+    saveSession(huntData);
     enterLobby(huntData);
   }catch(e){setErr('c-err','Connection error — check your internet and try again.');}
 }
@@ -759,7 +781,7 @@ async function joinHunt(){
     d.players.push({name,role});
     await writeBin(binId,d);
     S.code=code;S.name=name;S.role=role;
-    saveSession();
+    saveSession(d);
     if(d.started){enterHuntScreen(d);return;}
     enterLobby(d);
   }catch(e){setErr('j-err','Connection error — try again');}
@@ -857,26 +879,26 @@ function enterHuntScreen(d){
 function renderPreHunt(d){
   const el=document.getElementById('prehunt-content');
   el.innerHTML=`
-    <div class="yt-wrap">
-      <div id="yt-player-prehunt"></div>
-      <div class="yt-overlay" id="yt-overlay-prehunt" onclick="playYT('prehunt',0,45,'CqMFz6yHFGE')">
-        <div class="yt-play-btn">▶</div>
-        <div class="yt-play-label">Tap to play Anisuthide</div>
-      </div>
+    <div class="hint mb12" style="border-color:var(--gold);font-size:14px;">
+      🎵 Play <em>Anisuthide — Mungaru Male</em> on Spotify or YouTube, listen carefully, then complete the line below.
     </div>
-    <div class="card card-gold mb12">
-      <h3 class="mb8">Complete this line</h3>
-      <p style="font-size:16px;font-style:italic;line-height:1.9;color:var(--text);">"Anisuthide yaako indu,<br>neenenay nannavaLendu,<br>maayada lokadinda,<br>nanagaagi ___________"</p>
+    <div class="card card-gold mb16">
+      <h3 class="mb10">Complete this line</h3>
+      <p style="font-size:17px;font-style:italic;line-height:2;color:var(--text);">
+        "Anisuthide yaako indu,<br>
+        neenenay nannavaLendu,<br>
+        maayada lokadinda,<br>
+        nanagaagi ___________"
+      </p>
     </div>
     <div class="rec-zone mb12" id="prehunt-rec">
       <button class="rec-btn" id="prehunt-rec-btn" onclick="toggleRecord('prehunt')">🎤</button>
-      <div class="rec-status" id="prehunt-rec-status">Tap to record your answer</div>
+      <div class="rec-status" id="prehunt-rec-status">Tap to sing your answer</div>
       <div class="rec-timer" id="prehunt-rec-timer" style="display:none;">0:00</div>
     </div>
     <div id="prehunt-result"></div>
     <button class="btn btn-outline mt8" onclick="skipPrehunt()" style="font-size:13px;color:var(--muted);">Organiser approved it → Skip</button>
   `;
-  initYTPlayer('prehunt', 'CqMFz6yHFGE');
 }
 
 async function skipPrehunt(){
@@ -1560,17 +1582,18 @@ function playYT(id, startSec, pauseSec, videoId){
 function startHuntPolling(){
   clearPoll();
   startPoll(async()=>{
+    // Skip poll render if a write is in flight — prevents glitch-back
+    if(S.writing) return;
     const d2=await readBin(S.binId);
     const h=JSON.stringify(d2);
     if(h!==S.lastHash){
       S.lastHash=h;
-      // Update based on current screen
       const active=document.querySelector('.screen.active');
       if(active){
         const id=active.id;
-        if(id==='s-hunt')renderHunt(d2);
+        if(id==='s-hunt') renderHunt(d2);
         else if(id==='s-prehunt'&&d2.preHuntDone){clearPoll();show('s-hunt');renderHunt(d2);startHuntPolling();}
-        else if(id==='s-done')return;
+        else if(id==='s-done') return;
       }
     }
   });
