@@ -8,6 +8,7 @@
 <meta name="theme-color" content="#0a0908">
 <title>The Hunt</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<script src="https://www.youtube.com/iframe_api"></script>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -169,8 +170,10 @@ input::placeholder{color:var(--muted);}
 /* YouTube embed */
 .yt-wrap{position:relative;border-radius:12px;overflow:hidden;background:#000;margin-bottom:14px;}
 .yt-wrap iframe{width:100%;height:210px;border:none;display:block;}
-.yt-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);cursor:pointer;transition:opacity 0.2s;}
+.yt-overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);cursor:pointer;transition:opacity 0.2s;gap:10px;}
 .yt-overlay.hidden{display:none;}
+.yt-play-btn{width:64px;height:64px;border-radius:50%;background:rgba(232,184,109,0.9);display:flex;align-items:center;justify-content:center;font-size:24px;}
+.yt-play-label{color:rgba(255,255,255,0.85);font-size:13px;font-family:var(--fb);}
 
 /* Recording */
 .rec-zone{background:var(--surface2);border-radius:14px;padding:20px;text-align:center;border:0.5px solid var(--border2);}
@@ -567,8 +570,50 @@ let S = {
   mediaRecorder:null, audioChunks:[], recording:false,
   recTimer:null, recSecs:0,
   enrouteIdx:0,
-  photos:{} // local photo storage base64
+  photos:{},
+  shareCode:null
 };
+
+function saveSession(){
+  try{
+    sessionStorage.setItem('hunt_session', JSON.stringify({
+      code:S.code, name:S.name, role:S.role, binId:S.binId, shareCode:S.shareCode
+    }));
+  }catch(e){}
+}
+
+function loadSession(){
+  try{
+    const raw=sessionStorage.getItem('hunt_session');
+    if(!raw)return false;
+    const sess=JSON.parse(raw);
+    if(!sess.binId||!sess.role)return false;
+    S.code=sess.code; S.name=sess.name; S.role=sess.role;
+    S.binId=sess.binId; S.shareCode=sess.shareCode;
+    return true;
+  }catch(e){return false;}
+}
+
+function clearSession(){
+  try{sessionStorage.removeItem('hunt_session');}catch(e){}
+}
+
+// On page load, try to restore session
+window.addEventListener('load', async()=>{
+  if(loadSession()){
+    try{
+      const d=await readBin(S.binId);
+      if(d&&d.started){
+        enterHuntScreen(d);
+        return;
+      } else if(d&&!d.started){
+        enterLobby(d);
+        return;
+      }
+    }catch(e){}
+    clearSession();
+  }
+});
 
 // ─── UTILS ────────────────────────────────────────────
 function show(id){
@@ -693,6 +738,7 @@ async function createHunt(){
     const binId=await createBin(huntData);
     saveMap(code,binId);
     S.code=code;S.name=name;S.role=role;S.binId=binId;
+    saveSession();
     enterLobby(huntData);
   }catch(e){setErr('c-err','Connection error — check your internet and try again.');}
 }
@@ -713,6 +759,7 @@ async function joinHunt(){
     d.players.push({name,role});
     await writeBin(binId,d);
     S.code=code;S.name=name;S.role=role;
+    saveSession();
     if(d.started){enterHuntScreen(d);return;}
     enterLobby(d);
   }catch(e){setErr('j-err','Connection error — try again');}
@@ -810,15 +857,16 @@ function enterHuntScreen(d){
 function renderPreHunt(d){
   const el=document.getElementById('prehunt-content');
   el.innerHTML=`
-    <div class="yt-wrap mb12">
-      <iframe id="yt-prehunt" 
-        src="https://www.youtube.com/embed/CqMFz6yHFGE?start=0&end=45&enablejsapi=1&autoplay=0"
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-        allowfullscreen></iframe>
+    <div class="yt-wrap">
+      <div id="yt-player-prehunt"></div>
+      <div class="yt-overlay" id="yt-overlay-prehunt" onclick="playYT('prehunt',0,45,'CqMFz6yHFGE')">
+        <div class="yt-play-btn">▶</div>
+        <div class="yt-play-label">Tap to play Anisuthide</div>
+      </div>
     </div>
-    <div class="card mb12">
+    <div class="card card-gold mb12">
       <h3 class="mb8">Complete this line</h3>
-      <p style="font-size:15px;font-style:italic;line-height:1.7;color:var(--text);">"Anisuthide yaako indu,<br>neenenay nannavaLendu,<br>maayada lokadinda,<br>nanagaagi ___________"</p>
+      <p style="font-size:16px;font-style:italic;line-height:1.9;color:var(--text);">"Anisuthide yaako indu,<br>neenenay nannavaLendu,<br>maayada lokadinda,<br>nanagaagi ___________"</p>
     </div>
     <div class="rec-zone mb12" id="prehunt-rec">
       <button class="rec-btn" id="prehunt-rec-btn" onclick="toggleRecord('prehunt')">🎤</button>
@@ -828,6 +876,7 @@ function renderPreHunt(d){
     <div id="prehunt-result"></div>
     <button class="btn btn-outline mt8" onclick="skipPrehunt()" style="font-size:13px;color:var(--muted);">Organiser approved it → Skip</button>
   `;
+  initYTPlayer('prehunt', 'CqMFz6yHFGE');
 }
 
 async function skipPrehunt(){
@@ -1012,6 +1061,8 @@ async function submitGuess(guess,isChoice){
   if(!guess)return;
   const input=document.getElementById('g-input');
   if(input)input.value='';
+  // Pause polling so it doesn't interfere mid-submission
+  clearPoll();
   const d=await readBin(S.binId);
   if(!d.guesses)d.guesses={};
   if(!d.guesses[S.role])d.guesses[S.role]=[];
@@ -1021,16 +1072,27 @@ async function submitGuess(guess,isChoice){
   const correct=stop.answer.some(a=>guess.includes(a)||a.includes(guess.split(' ')[0]));
   if(correct){
     d.unlocked=true;
+    S.lastHash=JSON.stringify(d);
     await writeBin(S.binId,d);
     renderHunt(d);
+    startHuntPolling();
   } else {
+    S.lastHash=JSON.stringify(d);
     await writeBin(S.binId,d);
     const fb=document.getElementById('g-feedback');
     if(fb){
       const n=d.guesses[S.role].length;
       fb.className='gfb wrong';
       fb.textContent=n===1?'Not quite — try again.':n===2?'Nope. A hint is coming...':'Still not it. One more hint...';
-      setTimeout(()=>renderHunt(d),1300);
+      // Re-fetch fresh state for re-render, don't use stale local d
+      setTimeout(async()=>{
+        const fresh=await readBin(S.binId);
+        S.lastHash=JSON.stringify(fresh);
+        renderHunt(fresh);
+        startHuntPolling();
+      },1300);
+    } else {
+      startHuntPolling();
     }
   }
 }
@@ -1131,10 +1193,13 @@ async function answerTrivia(stopId,idx){
     else if(i===idx&&idx!==t.correct)o.classList.add('wrong');
     o.disabled=true;
   });
+  clearPoll();
   const d=await readBin(S.binId);
   if(!d.triviaAnswered)d.triviaAnswered={};
   d.triviaAnswered[stopId]={answered:true,correct:idx===t.correct};
+  S.lastHash=JSON.stringify(d);
   await writeBin(S.binId,d);
+  startHuntPolling();
   setTimeout(()=>{
     const card=document.getElementById(`trivia-${stopId}`);
     if(card)card.innerHTML+=`<div class="hint mt12" style="margin-bottom:0;">${idx===t.correct?'✓ Correct! ':'✗ Not quite — '}${t.explanation}</div>`;
@@ -1181,34 +1246,27 @@ function renderEnRoute(d,activeStops){
     el.innerHTML=`
       <div class="card card-gold mb12">
         <h3 class="mb8">En route — Lyrics ${idx+1} of ${ENROUTE_TRIVIA.length}</h3>
-        <p style="font-size:14px;color:var(--muted);margin-bottom:12px;">${q.song}</p>
+        <p style="font-size:13px;color:var(--muted);">${q.song}</p>
       </div>
-      <div class="yt-wrap mb12">
-        <iframe id="yt-enroute"
-          src="https://www.youtube.com/embed/${q.ytId}?start=${q.startSec}&enablejsapi=1&autoplay=1"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          allowfullscreen></iframe>
+      <div class="yt-wrap">
+        <div id="yt-player-enroute"></div>
+        <div class="yt-overlay" id="yt-overlay-enroute" onclick="playYT('enroute',${q.startSec},${q.pauseSec},'${q.ytId}')">
+          <div class="yt-play-btn">▶</div>
+          <div class="yt-play-label">Tap to play the clip</div>
+        </div>
       </div>
       <div class="card mb12">
-        <p style="font-style:italic;font-size:15px;color:var(--text);line-height:1.7;">${q.prompt}</p>
+        <p style="font-style:italic;font-size:16px;color:var(--text);line-height:1.8;">${q.prompt}</p>
       </div>
-      <div class="rec-zone mb12" id="enroute-rec">
-        <button class="rec-btn" id="enroute-rec-btn" onclick="toggleRecord('enroute')">🎤</button>
-        <div class="rec-status" id="enroute-rec-status">Tap to record your answer</div>
-        <div class="rec-timer" id="enroute-rec-timer" style="display:none;">0:00</div>
-      </div>
-      <div id="enroute-result"></div>
-      <input type="text" id="enroute-typed" placeholder="Or type your answer..." class="mb8" autocomplete="off">
-      <button class="btn btn-outline" onclick="checkEnRouteLyrics()">Check answer</button>`;
-    // Auto-pause after pauseSec
-    setTimeout(()=>{
-      const iframe=document.getElementById('yt-enroute');
-      if(iframe)iframe.src=`https://www.youtube.com/embed/${q.ytId}?start=${q.startSec}&end=${q.pauseSec}&enablejsapi=1&autoplay=1`;
-    },100);
+      <div id="enroute-result" class="mb8"></div>
+      <input type="text" id="enroute-typed" placeholder="Type your answer..." class="mb8" autocomplete="off" onkeydown="if(event.key==='Enter')checkEnRouteLyrics()">
+      <button class="btn btn-gold" onclick="checkEnRouteLyrics()">Check answer</button>`;
+    initYTPlayer('enroute', q.ytId);
   }
 }
 
 async function answerEnRoute(idx){
+  clearPoll();
   const d=await readBin(S.binId);
   const q=ENROUTE_TRIVIA[d.enrouteIdx||0];
   const opts=document.querySelectorAll('.trivia-opt');
@@ -1221,6 +1279,7 @@ async function answerEnRoute(idx){
 }
 
 async function checkEnRouteLyrics(){
+  clearPoll();
   const input=document.getElementById('enroute-typed');
   const typed=(input?input.value:'').trim().toLowerCase();
   const d=await readBin(S.binId);
@@ -1234,20 +1293,26 @@ async function checkEnRouteLyrics(){
       resultEl.innerHTML=`<div style="background:rgba(212,122,106,0.1);border:0.5px solid var(--red);border-radius:12px;padding:12px;margin-bottom:8px;"><p style="color:var(--red);font-size:14px;">The answer: <em style="color:var(--text);">"${q.answer}"</em></p></div>`;
     }
   }
-  setTimeout(()=>advanceEnRoute(d,false),1600);
+  setTimeout(()=>advanceEnRoute(null,false),1600);
 }
 
-async function advanceEnRoute(d,skip){
+async function advanceEnRoute(ignored, skip){
+  clearPoll();
+  const d=await readBin(S.binId);
   const nextIdx=(d.enrouteIdx||0)+(skip?0:1);
-  if(nextIdx>=ENROUTE_TRIVIA.length||skip){
+  if(nextIdx>=ENROUTE_TRIVIA.length){
     d.enrouteDone=true;
     d.enrouteIdx=nextIdx;
+    S.lastHash=JSON.stringify(d);
     await writeBin(S.binId,d);
     renderHunt(d);
+    startHuntPolling();
   } else {
     d.enrouteIdx=nextIdx;
+    S.lastHash=JSON.stringify(d);
     await writeBin(S.binId,d);
     renderEnRoute(d,getActiveStops(d));
+    startHuntPolling();
   }
 }
 
@@ -1275,14 +1340,17 @@ async function handlePhoto(input,photoKey){
 
 // ─── NEXT STOP ────────────────────────────────────────
 async function nextStop(){
+  clearPoll();
   const d=await readBin(S.binId);
   const activeStops=getActiveStops(d);
   if(d.currentStop<activeStops.length-1){
     d.currentStop++;
     d.unlocked=false;
     d.guesses={};
+    S.lastHash=JSON.stringify(d);
     await writeBin(S.binId,d);
     renderHunt(d);
+    startHuntPolling();
   }
 }
 
@@ -1364,17 +1432,31 @@ function renderOrg(d){
 }
 
 async function approveDance(){
+  clearPoll();
   const d=await readBin(S.binId);
   d.danceApproved=true;
+  S.lastHash=JSON.stringify(d);
   await writeBin(S.binId,d);
   renderOrg(d);
+  startPoll(async()=>{
+    const d2=await readBin(S.binId);
+    const h=JSON.stringify(d2);
+    if(h!==S.lastHash){S.lastHash=h;renderOrg(d2);}
+  });
 }
 
 async function forceUnlock(){
+  clearPoll();
   const d=await readBin(S.binId);
   d.unlocked=true;
+  S.lastHash=JSON.stringify(d);
   await writeBin(S.binId,d);
   renderOrg(d);
+  startPoll(async()=>{
+    const d2=await readBin(S.binId);
+    const h=JSON.stringify(d2);
+    if(h!==S.lastHash){S.lastHash=h;renderOrg(d2);}
+  });
 }
 
 function showRemoveModal(){
@@ -1406,6 +1488,74 @@ async function removeStop(stopId){
 // ─── POLLING ──────────────────────────────────────────
 function startPoll(fn){clearPoll();S.poll=setInterval(fn,4000);}
 function clearPoll(){if(S.poll){clearInterval(S.poll);S.poll=null;}}
+
+// ─── YOUTUBE PLAYER ───────────────────────────────────
+let YT_PLAYERS = {};
+let YT_API_READY = false;
+
+function onYouTubeIframeAPIReady(){
+  YT_API_READY = true;
+}
+
+function initYTPlayer(id, videoId){
+  // Small delay to ensure DOM element exists
+  setTimeout(()=>{
+    const el = document.getElementById('yt-player-'+id);
+    if(!el) return;
+    if(YT_PLAYERS[id]){ try{ YT_PLAYERS[id].destroy(); }catch(e){} }
+    if(!YT_API_READY || typeof YT === 'undefined' || !YT.Player){
+      // API not ready yet, retry
+      setTimeout(()=>initYTPlayer(id, videoId), 500);
+      return;
+    }
+    YT_PLAYERS[id] = new YT.Player('yt-player-'+id, {
+      height:'210',
+      width:'100%',
+      videoId: videoId,
+      playerVars:{
+        playsinline:1,
+        controls:1,
+        rel:0,
+        modestbranding:1
+      },
+      events:{
+        onReady: (e)=>{ /* ready */ },
+        onStateChange: (e)=>{
+          // handled by playYT interval
+        }
+      }
+    });
+  }, 200);
+}
+
+function playYT(id, startSec, pauseSec, videoId){
+  const overlay = document.getElementById('yt-overlay-'+id);
+  if(overlay) overlay.classList.add('hidden');
+  const player = YT_PLAYERS[id];
+  if(!player){ initYTPlayer(id, videoId); setTimeout(()=>playYT(id,startSec,pauseSec,videoId),800); return; }
+  try{
+    player.seekTo(startSec, true);
+    player.playVideo();
+    // Poll to pause at the right second
+    const interval = setInterval(()=>{
+      try{
+        const cur = player.getCurrentTime();
+        if(cur >= pauseSec){
+          player.pauseVideo();
+          clearInterval(interval);
+          // Show "record now" prompt
+          const resultEl = document.getElementById(id==='prehunt'?'prehunt-result':'enroute-result');
+          if(resultEl && !resultEl.innerHTML){
+            resultEl.innerHTML = '<div class="hint" style="border-color:var(--gold);color:var(--gold);">🎤 Now complete the line below!</div>';
+          }
+        }
+      }catch(e){ clearInterval(interval); }
+    }, 250);
+  }catch(e){
+    // Player not ready
+    setTimeout(()=>playYT(id,startSec,pauseSec,videoId),500);
+  }
+}
 
 function startHuntPolling(){
   clearPoll();
